@@ -428,6 +428,51 @@ body {
 .smc-info b { margin-left: 4px; color: var(--text); font-weight: 600; }
 .smc-info b.up { color: var(--up); }
 .smc-info b.down { color: var(--down); }
+.smc-info b.gold { color: var(--gold); }
+
+.layer-sep {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--faint);
+  padding-left: 12px;
+  border-left: 1px solid var(--border);
+  align-self: center;
+}
+
+/* Killzone legend */
+.kz-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-bottom: 8px; font-size: 11px; }
+.kz-chip { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
+.kz-chip::before { content: ''; width: 10px; height: 10px; border-radius: 2px; background: var(--kz); opacity: 0.6; }
+.kz-chip b { color: var(--text); font-weight: 500; }
+.kz-note { color: var(--faint); }
+
+/* MTF Trend Matrix (melayang di pojok kiri atas chart) */
+.smc-mtf {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 3;
+  min-width: 210px;
+  padding: 8px 10px;
+  background: rgba(7, 8, 11, 0.86);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 11px;
+  pointer-events: none;
+  backdrop-filter: blur(2px);
+}
+.smc-mtf[hidden] { display: none; }
+.mtf-title { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--faint); margin-bottom: 4px; }
+.smc-mtf table { width: 100%; border-collapse: collapse; }
+.smc-mtf td { padding: 3px 4px; white-space: nowrap; }
+.smc-mtf td:first-child { font-family: var(--mono); color: var(--muted); width: 32px; }
+.smc-mtf tr.active td:first-child { color: var(--gold); }
+.smc-mtf tr + tr td { border-top: 1px solid var(--border); }
+.smc-mtf .up { color: var(--up); }
+.smc-mtf .down { color: var(--down); }
+.smc-mtf .muted { color: var(--faint); }
+.mtf-foot { margin-top: 5px; padding-top: 5px; border-top: 1px solid var(--border); color: var(--muted); font-weight: 600; }
 
 .smc-chart-wrap {
   position: relative;

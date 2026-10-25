@@ -4,6 +4,7 @@
    - Order Block aktif (belum termitigasi)
    - Fair Value Gap aktif (belum terisi)
    - Zona Premium / Equilibrium / Discount
+   - Filter entry: Session Killzones, MTF Trend Matrix, Fibonacci OTE
    Data: PAXG/USDT dari Binance (token emas 1:1 troy ounce, proxy XAUUSD)
    ===================================================================== */
 (() => {
@@ -20,13 +21,32 @@
   const POLL_MS = 5000;
   const LIMITS = { structures: 12, swings: 24, obPerSide: 3, fvgs: 8 };
 
+  // Killzone ICT didefinisikan dalam jam New York, sehingga pergeseran DST AS
+  // otomatis ikut terkonversi ke WIB
+  const KILLZONES = [
+    { name: 'Asia', label: 'ASIA', short: 'AS', start: 20 * 60, end: 24 * 60, color: '#5b8cff' },
+    { name: 'London Open', label: 'LONDON', short: 'LO', start: 2 * 60, end: 5 * 60, color: '#b07cff' },
+    { name: 'New York Open', label: 'NEW YORK', short: 'NY', start: 7 * 60, end: 10 * 60, color: '#3fc1c9' }
+  ];
+  const KILLZONE_TFS = new Set(['15m', '1h']); // di 4H/1D satu candle lebih panjang dari sesi
+
+  const FIB_LEVELS = [0, 0.5, 0.618, 0.705, 0.786, 1];
+  const OTE = [0.618, 0.786];
+
+  const MTF_TFS = ['15m', '1h', '4h'];
+  const MTF_MS = 60000;
+  const TF_LABEL = { '15m': '15m', '1h': '1H', '4h': '4H', '1d': '1D' };
+
   const state = {
     interval: '1h',
     swingLen: 5,
     candles: [],
     smc: null,
-    show: { structure: true, ob: true, fvg: true, pd: true },
+    killzones: [],
+    mtf: null,
+    show: { structure: true, ob: true, fvg: true, pd: true, kz: true, fib: true, mtf: true },
     loadId: 0,
+    mtfId: 0,
     pollTimer: null,
     source: SOURCES[0],
     version: 0
@@ -36,6 +56,7 @@
   const canvas = document.getElementById('smc-overlay');
   const ctx = canvas.getContext('2d');
   const statusEl = document.getElementById('smc-status');
+  const mtfEl = document.getElementById('smc-mtf');
 
   /* ---------- Chart ---------- */
   const chart = LightweightCharts.createChart(el, {
@@ -68,13 +89,13 @@
     open: +r[1], high: +r[2], low: +r[3], close: +r[4]
   });
 
-  async function fetchKlines(limit) {
+  async function fetchKlines(limit, interval = state.interval) {
     // Coba sumber terakhir yang berhasil dulu, lalu sisanya
     const order = [state.source, ...SOURCES.filter(s => s !== state.source)];
     let lastErr;
     for (const base of order) {
       try {
-        const res = await fetch(`${base}/api/v3/klines?symbol=${SYMBOL}&interval=${state.interval}&limit=${limit}`);
+        const res = await fetch(`${base}/api/v3/klines?symbol=${SYMBOL}&interval=${interval}&limit=${limit}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         state.source = base;
         return (await res.json()).map(toCandle);
@@ -240,6 +261,19 @@
       pd = { start, top, bottom };
     }
 
+    // Fibonacci OTE pada impuls terakhir searah tren:
+    // bullish = swing low terakhir → high tertinggi setelahnya, bearish = sebaliknya
+    let fib = null;
+    if (trend === 1 && lastLow) {
+      let hi = lastLow.idx;
+      for (let j = lastLow.idx; j < n; j++) if (c[j].high > c[hi].high) hi = j;
+      if (hi > lastLow.idx) fib = { dir: 1, from: lastLow.idx, to: hi, low: lastLow.price, high: c[hi].high };
+    } else if (trend === -1 && lastHigh) {
+      let lo = lastHigh.idx;
+      for (let j = lastHigh.idx; j < n; j++) if (c[j].low < c[lo].low) lo = j;
+      if (lo > lastHigh.idx) fib = { dir: -1, from: lastHigh.idx, to: lo, high: lastHigh.price, low: c[lo].low };
+    }
+
     const activeOb = dir => obs.filter(o => o.dir === dir && o.end === null).slice(-LIMITS.obPerSide);
 
     return {
@@ -248,12 +282,120 @@
       swings: swings.filter(s => s.label).slice(-LIMITS.swings),
       obs: [...activeOb(1), ...activeOb(-1)],
       fvgs: fvgs.filter(f => f.end === null).slice(-LIMITS.fvgs),
-      pd
+      pd,
+      fib
     };
+  }
+
+  // Harga level retracement: 0 = ujung impuls, 1 = awal impuls
+  const fibLevel = (f, r) => (f.dir === 1 ? f.high - (f.high - f.low) * r : f.low + (f.high - f.low) * r);
+
+  /* ---------- Session Killzones ---------- */
+  const nyFmt = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short', hour: 'numeric', minute: 'numeric', hourCycle: 'h23' });
+  const nyCache = new Map();
+
+  function nyClockOf(utcSec) {
+    const parts = nyFmt.formatToParts(new Date(utcSec * 1000));
+    const get = type => parts.find(p => p.type === type).value;
+    return { day: get('weekday'), min: Number(get('hour')) * 60 + Number(get('minute')) };
+  }
+
+  // Hari & menit jam New York, di-cache per waktu candle agar polling tetap ringan
+  function nyClock(utcSec) {
+    let v = nyCache.get(utcSec);
+    if (v === undefined) {
+      if (nyCache.size > 20000) nyCache.clear();
+      v = nyClockOf(utcSec);
+      nyCache.set(utcSec, v);
+    }
+    return v;
+  }
+
+  // Pasar emas tutup Jumat 17:00 – Minggu 18:00 NY (PAXG tetap jalan 24/7)
+  const goldMarketOpen = ({ day, min }) =>
+    !(day === 'Sat' || (day === 'Fri' && min >= 17 * 60) || (day === 'Sun' && min < 18 * 60));
+
+  function computeKillzones(c) {
+    if (!KILLZONE_TFS.has(state.interval)) return [];
+    const runs = [];
+    let cur = null;
+    for (let i = 0; i < c.length; i++) {
+      const clock = nyClock(c[i].time - TZ_OFFSET);
+      const m = clock.min;
+      const zone = goldMarketOpen(clock) ? KILLZONES.find(z => m >= z.start && m < z.end) || null : null;
+      if (zone && cur && cur.zone === zone) {
+        cur.end = i;
+      } else if (zone) {
+        cur = { zone, start: i, end: i };
+        runs.push(cur);
+      } else {
+        cur = null;
+      }
+    }
+    return runs;
+  }
+
+  function renderKillzoneLegend() {
+    const legend = document.getElementById('smc-kz-legend');
+    // Selisih jam New York terhadap UTC saat ini (otomatis -4 saat DST, -5 saat standar)
+    const now = Math.floor(Date.now() / 1000);
+    const utcMin = Math.floor(now / 60) % 1440;
+    const nyOffset = (nyClockOf(now).min - utcMin + 1440) % 1440;
+    const toWib = m => {
+      const w = (m - nyOffset + TZ_OFFSET / 60 + 2880) % 1440;
+      return String(Math.floor(w / 60)).padStart(2, '0') + ':' + String(w % 60).padStart(2, '0');
+    };
+    const note = KILLZONE_TFS.has(state.interval) ? '' : '<span class="kz-note">tampil di 15m/1H</span>';
+    legend.innerHTML = KILLZONES.map(z =>
+      `<span class="kz-chip" style="--kz:${z.color}">${z.name} <b class="mono">${toWib(z.start)}–${toWib(z.end)}</b></span>`
+    ).join('') + '<span class="kz-note">WIB</span>' + note;
+  }
+
+  /* ---------- MTF Trend Matrix ---------- */
+  async function refreshMTF() {
+    const id = ++state.mtfId;
+    const len = state.swingLen;
+    const rows = await Promise.all(MTF_TFS.map(async tf => {
+      try {
+        const r = computeSMC(await fetchKlines(500, tf), len);
+        return { tf, trend: r.trend, ev: r.structures[r.structures.length - 1] || null };
+      } catch (err) {
+        return { tf, error: true };
+      }
+    }));
+    if (id !== state.mtfId) return;
+    state.mtf = rows;
+    renderMTF();
+  }
+
+  function renderMTF() {
+    mtfEl.hidden = !state.show.mtf;
+    if (!state.show.mtf) return;
+    if (!state.mtf) {
+      mtfEl.innerHTML = '<div class="mtf-title">MTF Trend</div><div class="mtf-foot">Memuat…</div>';
+      return;
+    }
+    const body = state.mtf.map(r => {
+      const active = r.tf === state.interval ? ' class="active"' : '';
+      if (r.error) return `<tr${active}><td>${TF_LABEL[r.tf]}</td><td colspan="2" class="muted">gagal memuat</td></tr>`;
+      const cls = r.trend === 1 ? 'up' : r.trend === -1 ? 'down' : 'muted';
+      const trend = r.trend === 1 ? '▲ Bullish' : r.trend === -1 ? '▼ Bearish' : '— Netral';
+      const ev = r.ev ? `${r.ev.type} ${r.ev.price.toFixed(2)}` : '—';
+      return `<tr${active}><td>${TF_LABEL[r.tf]}</td><td class="${cls}">${trend}</td><td class="mono muted">${ev}</td></tr>`;
+    }).join('');
+    const trends = state.mtf.filter(r => !r.error).map(r => r.trend);
+    const aligned = trends.length === MTF_TFS.length && trends[0] !== 0 && trends.every(t => t === trends[0]);
+    const foot = aligned
+      ? `<span class="${trends[0] === 1 ? 'up' : 'down'}">Selaras ${trends[0] === 1 ? 'Bullish' : 'Bearish'}</span>`
+      : 'Campuran — tunggu keselarasan';
+    mtfEl.innerHTML = `<div class="mtf-title">MTF Trend Matrix</div>
+      <table><tbody>${body}</tbody></table>
+      <div class="mtf-foot">${foot}</div>`;
   }
 
   function recompute() {
     state.smc = computeSMC(state.candles, state.swingLen);
+    state.killzones = computeKillzones(state.candles);
     state.version++;
     updateInfo();
     // Diteruskan ke peluang.js untuk petunjuk zona beli/jual
@@ -265,7 +407,7 @@
 
   /* ---------- Info bar ---------- */
   function updateInfo() {
-    const { trend, structures } = state.smc;
+    const { trend, structures, fib } = state.smc;
     const last = state.candles[state.candles.length - 1];
     const trendEl = document.getElementById('smc-trend');
     trendEl.textContent = trend === 1 ? 'Bullish' : trend === -1 ? 'Bearish' : 'Netral';
@@ -275,6 +417,20 @@
     const evEl = document.getElementById('smc-last');
     evEl.textContent = ev ? `${ev.type} ${ev.dir === 1 ? '▲' : '▼'} ${ev.price.toFixed(2)}` : '—';
     evEl.className = ev ? (ev.dir === 1 ? 'up' : 'down') : '';
+
+    const oteEl = document.getElementById('smc-ote');
+    if (fib && last) {
+      const a = fibLevel(fib, OTE[0]);
+      const b = fibLevel(fib, OTE[1]);
+      const lo = Math.min(a, b);
+      const hi = Math.max(a, b);
+      const inZone = last.close >= lo && last.close <= hi;
+      oteEl.textContent = `${lo.toFixed(2)}–${hi.toFixed(2)}${inZone ? ' · harga di OTE' : ''}`;
+      oteEl.className = 'mono' + (inZone ? ' gold' : '');
+    } else {
+      oteEl.textContent = '—';
+      oteEl.className = 'mono';
+    }
   }
 
   function setStatus(msg) {
@@ -306,6 +462,71 @@
     }
   }
 
+  function drawKillzones(X, paneW, paneH) {
+    ctx.font = '600 9px Inter, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    for (const run of state.killzones) {
+      const x1 = X(run.start - 0.5);
+      const x2 = X(run.end + 0.5);
+      if (x1 === null || x2 === null || x2 < 0 || x1 > paneW) continue;
+      ctx.fillStyle = alpha(run.zone.color, 0.07);
+      ctx.fillRect(x1, 0, x2 - x1, paneH);
+      // Label penuh jika muat, label pendek jika blok sempit (mis. 1H)
+      const room = x2 - x1 - 6;
+      const text = [run.zone.label, run.zone.short].find(t => ctx.measureText(t).width <= room);
+      if (text) {
+        ctx.fillStyle = alpha(run.zone.color, 0.7);
+        ctx.fillText(text, x1 + 3, 6);
+      }
+    }
+  }
+
+  function drawFib(f, X, Y, paneW) {
+    const x1 = X(f.from);
+    const x2 = X(f.to);
+    if (x1 === null || x2 === null) return;
+
+    // Zona OTE 0.618–0.786
+    const yA = Y(fibLevel(f, OTE[0]));
+    const yB = Y(fibLevel(f, OTE[1]));
+    if (yA !== null && yB !== null) {
+      ctx.fillStyle = alpha(COLORS.gold, 0.13);
+      ctx.fillRect(x1, Math.min(yA, yB), paneW - x1, Math.abs(yB - yA));
+    }
+
+    // Garis impuls yang diukur
+    const yStart = Y(f.dir === 1 ? f.low : f.high);
+    const yEnd = Y(f.dir === 1 ? f.high : f.low);
+    if (yStart !== null && yEnd !== null) {
+      ctx.strokeStyle = alpha(COLORS.gold, 0.5);
+      ctx.setLineDash([2, 3]);
+      ctx.beginPath();
+      ctx.moveTo(x1, yStart);
+      ctx.lineTo(x2, yEnd);
+      ctx.stroke();
+    }
+
+    ctx.font = '500 9px Inter, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'bottom';
+    for (const r of FIB_LEVELS) {
+      const p = fibLevel(f, r);
+      const y = Y(p);
+      if (y === null) continue;
+      const inOte = r >= OTE[0] && r <= OTE[1];
+      ctx.strokeStyle = alpha(COLORS.gold, inOte ? 0.7 : 0.3);
+      ctx.setLineDash(r === 0.705 ? [] : [6, 4]);
+      ctx.beginPath();
+      ctx.moveTo(x1, Math.round(y) + 0.5);
+      ctx.lineTo(paneW, Math.round(y) + 0.5);
+      ctx.stroke();
+      ctx.fillStyle = alpha(COLORS.gold, inOte ? 0.95 : 0.6);
+      ctx.fillText(`${r} · ${p.toFixed(2)}${r === 0.705 ? ' OTE' : ''}`, x2 + 6, y - 2);
+    }
+    ctx.setLineDash([]);
+  }
+
   function draw() {
     const dpr = window.devicePixelRatio || 1;
     const w = el.clientWidth;
@@ -332,7 +553,9 @@
     ctx.rect(0, 0, paneW, paneH);
     ctx.clip();
 
-    const { structures, swings, obs, fvgs, pd } = state.smc;
+    const { structures, swings, obs, fvgs, pd, fib } = state.smc;
+
+    if (state.show.kz) drawKillzones(X, paneW, paneH);
 
     if (state.show.pd && pd) {
       const x1 = X(pd.start);
@@ -364,6 +587,8 @@
         ctx.fillText('DISCOUNT', paneW - 6, yBot - 4);
       }
     }
+
+    if (state.show.fib && fib) drawFib(fib, X, Y, paneW);
 
     if (state.show.fvg) {
       for (const f of fvgs) {
@@ -436,20 +661,28 @@
     if (!btn || btn.dataset.interval === state.interval) return;
     state.interval = btn.dataset.interval;
     for (const b of e.currentTarget.querySelectorAll('button')) b.classList.toggle('active', b === btn);
+    renderKillzoneLegend();
+    renderMTF();
     load();
   });
 
   document.getElementById('smc-swing').addEventListener('change', e => {
     state.swingLen = Number(e.target.value);
     if (state.candles.length) recompute();
+    refreshMTF();
   });
 
   for (const box of document.querySelectorAll('[data-layer]')) {
     box.addEventListener('change', () => {
       state.show[box.dataset.layer] = box.checked;
       state.version++;
+      if (box.dataset.layer === 'mtf') renderMTF();
     });
   }
 
+  renderKillzoneLegend();
+  renderMTF();
   load();
+  refreshMTF();
+  setInterval(refreshMTF, MTF_MS);
 })();

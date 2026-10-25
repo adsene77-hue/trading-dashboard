@@ -133,16 +133,23 @@
           <label><input type="checkbox" data-layer="ob" checked> Order Block</label>
           <label><input type="checkbox" data-layer="fvg" checked> FVG</label>
           <label><input type="checkbox" data-layer="pd" checked> Premium/Discount</label>
+          <span class="layer-sep">Filter entry</span>
+          <label><input type="checkbox" data-layer="kz" checked> Killzone</label>
+          <label><input type="checkbox" data-layer="fib" checked> Fibonacci OTE</label>
+          <label><input type="checkbox" data-layer="mtf" checked> MTF Matrix</label>
         </div>
         <div class="smc-info">
           <span>Tren <b id="smc-trend">—</b></span>
           <span>Harga <b id="smc-price" class="mono">—</b></span>
           <span>Terakhir <b id="smc-last" class="mono">—</b></span>
+          <span>OTE <b id="smc-ote" class="mono">—</b></span>
         </div>
       </div>
+      <div class="kz-legend" id="smc-kz-legend"></div>
       <div class="smc-chart-wrap">
         <div id="smc-chart"></div>
         <canvas id="smc-overlay"></canvas>
+        <div class="smc-mtf" id="smc-mtf"></div>
         <div class="smc-status" id="smc-status">Memuat data…</div>
       </div>
     </section>

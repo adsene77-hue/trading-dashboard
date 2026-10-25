@@ -81,6 +81,17 @@
       <p class="panel-foot">Sumber: CFTC Legacy Futures Only · Kode pasar 088691 (Gold, COMEX) · Non-Commercial</p>
     </section>
 
+    <!-- Panel 2b: Laporan Analisis COT -->
+    <section class="panel panel-report" id="cot-report">
+      <div class="panel-head">
+        <h2>Laporan Analisis Pergerakan Bandar</h2>
+        <span class="panel-sub" id="report-period">COT mingguan · Non-Commercial</span>
+      </div>
+      <div class="report-body" id="report-body">
+        <p class="report-empty">Muat data CFTC di panel COT untuk membuat laporan otomatis.</p>
+      </div>
+    </section>
+
     <!-- Panel 3: Kalender Makro -->
     <section class="panel panel-calendar">
       <div class="panel-head">
@@ -284,6 +295,122 @@
       document.getElementById('cot-short').textContent = fmt(last.short);
       document.getElementById('cot-date').textContent = last.date;
       document.getElementById('cot-empty').hidden = true;
+      renderReport(data);
+    }
+
+    /* ---------- Laporan Analisis Pergerakan Bandar ---------- */
+    // Perubahan dianggap "drastis" jika >= 1.5x rata-rata perubahan mingguan absolut,
+    // dan diabaikan dalam deduksi jika < 0.25x (terlalu kecil untuk bermakna)
+    const DRASTIC_RATIO = 1.5;
+    const MINOR_RATIO = 0.25;
+
+    function analyzeCOT(data) {
+      const cur = data[data.length - 1];
+      const prev = data[data.length - 2];
+      const dLong = cur.long - prev.long;
+      const dShort = cur.short - prev.short;
+      const dNet = cur.net - prev.net;
+
+      const avgAbs = key => {
+        let sum = 0;
+        for (let i = 1; i < data.length; i++) sum += Math.abs(data[i][key] - data[i - 1][key]);
+        return sum / (data.length - 1);
+      };
+      const avgLong = avgAbs('long');
+      const avgShort = avgAbs('short');
+      const drasticLong = Math.abs(dLong) >= avgLong * DRASTIC_RATIO;
+      const drasticShort = Math.abs(dShort) >= avgShort * DRASTIC_RATIO;
+      const minorShort = Math.abs(dShort) < avgShort * MINOR_RATIO;
+
+      let verdict;
+      if (dLong < 0 && dShort > 0) {
+        verdict = { key: 'dist', text: 'Big Money Sedang Distribusi/Jual' };
+      } else if (dNet > 0) {
+        verdict = { key: 'accum', text: 'Big Money Sedang Akumulasi Beli' };
+      } else if (dLong < 0) {
+        // Long ditutup tanpa penambahan Short berarti realisasi keuntungan
+        verdict = { key: 'tp', text: 'Big Money Sedang Taking Profit' };
+      } else if (dNet < 0) {
+        // Long tetap/naik tapi Short bertambah lebih cepat
+        verdict = { key: 'dist', text: 'Big Money Sedang Distribusi/Jual' };
+      } else {
+        verdict = { key: 'tp', text: 'Big Money Menahan Posisi (Netral)' };
+      }
+
+      const reasons = [];
+      if (dLong > 0 && drasticLong) {
+        reasons.push('Institusi menambah posisi beli besar-besaran, mengindikasikan ekspektasi pelemahan Dolar AS atau meningkatnya ketegangan geopolitik (Safe Haven demand).');
+      } else if (dLong > 0) {
+        reasons.push('Institusi menambah posisi beli secara bertahap, menandakan sentimen bullish terhadap emas masih terjaga.');
+      }
+      if (dShort > 0) {
+        reasons.push(drasticShort
+          ? 'Institusi menambah posisi jual dalam jumlah besar — aksi hedging (lindung nilai) agresif atau ekspektasi inflasi mulai stabil sehingga daya tarik emas menurun.'
+          : 'Institusi melakukan aksi hedging (lindung nilai) atau berekspektasi inflasi mulai stabil.');
+      }
+      if (dLong < 0 && dShort <= 0) {
+        reasons.push(drasticLong
+          ? 'Institusi melepas posisi beli dalam jumlah besar untuk merealisasikan keuntungan, biasanya setelah reli panjang atau menjelang rilis data makro penting (NFP, CPI, FOMC).'
+          : 'Institusi merealisasikan sebagian keuntungan posisi beli; belum ada tanda posisi jual baru, sehingga tren utama belum tentu berbalik.');
+      } else if (dLong < 0) {
+        reasons.push('Posisi beli ditutup bersamaan dengan bertambahnya posisi jual — sinyal pergeseran sentimen dari bullish ke bearish.');
+      }
+      if (dShort < 0 && !minorShort) {
+        reasons.push(dLong >= 0
+          ? 'Terjadi penutupan posisi jual (short covering), tekanan jual mereda dan memperkuat dorongan naik.'
+          : 'Posisi jual juga dikurangi, menandakan institusi sedang mengurangi eksposur secara keseluruhan (risk-off dari pasar emas futures).');
+      }
+      if (!reasons.length) {
+        reasons.push('Posisi institusi relatif tidak berubah; pasar kemungkinan sedang menunggu katalis berikutnya.');
+      }
+
+      return { cur, prev, dLong, dShort, dNet, verdict, reasons };
+    }
+
+    function renderReport(data) {
+      const panel = document.getElementById('cot-report');
+      const body = document.getElementById('report-body');
+      if (data.length < 2) {
+        body.innerHTML = '<p class="report-empty">Butuh minimal 2 laporan COT untuk perbandingan.</p>';
+        return;
+      }
+
+      const r = analyzeCOT(data);
+      const fmt = n => Math.abs(n).toLocaleString('id-ID');
+      const signed = n => (n > 0 ? '+' : n < 0 ? '−' : '') + fmt(n);
+      const pct = (d, base) => base ? ` (${d >= 0 ? '+' : '−'}${Math.abs(d / base * 100).toFixed(1)}%)` : '';
+      const cls = n => (n > 0 ? 'up' : n < 0 ? 'down' : '');
+      const action = (d, side) =>
+        d > 0 ? `menambahkan <b>${fmt(d)}</b> kontrak ${side}` :
+        d < 0 ? `mengurangi <b>${fmt(d)}</b> kontrak ${side}` :
+        `tidak mengubah kontrak ${side}`;
+
+      panel.classList.remove('is-accum', 'is-dist', 'is-tp');
+      panel.classList.add('is-' + r.verdict.key);
+      document.getElementById('report-period').textContent = `${r.prev.date} → ${r.cur.date}`;
+
+      body.innerHTML = `
+        <div class="report-block report-verdict">
+          <span class="report-label">Kesimpulan Aksi</span>
+          <strong class="verdict">${r.verdict.text}</strong>
+          <span class="verdict-meta">Net posisi ${signed(r.prev.net)} → <b class="${cls(r.cur.net)}">${signed(r.cur.net)}</b> kontrak</span>
+        </div>
+        <div class="report-block">
+          <span class="report-label">Rincian Posisi</span>
+          <p>Institusi ${action(r.dLong, 'Beli')} dan ${action(r.dShort, 'Jual')} minggu ini, sehingga Net Long berubah <b class="${cls(r.dNet)}">${signed(r.dNet)}</b> kontrak.</p>
+          <div class="delta-row">
+            <span class="delta">Long <b class="mono ${cls(r.dLong)}">${signed(r.dLong)}${pct(r.dLong, r.prev.long)}</b></span>
+            <span class="delta">Short <b class="mono ${cls(-r.dShort)}">${signed(r.dShort)}${pct(r.dShort, r.prev.short)}</b></span>
+            <span class="delta">Net <b class="mono ${cls(r.dNet)}">${signed(r.dNet)}</b></span>
+          </div>
+        </div>
+        <div class="report-block">
+          <span class="report-label">Estimasi Alasan Market</span>
+          <ul class="reasons">
+            ${r.reasons.map(t => `<li><b>Alasan Logis:</b> ${t}</li>`).join('')}
+          </ul>
+        </div>
+        <p class="report-note">Deduksi otomatis dari perubahan posisi COT mingguan — bukan saran investasi.</p>`;
     }
 
     document.getElementById('cot-load').addEventListener('click', async (e) => {

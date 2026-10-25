@@ -81,15 +81,17 @@ body {
   gap: var(--gap);
   padding: var(--gap);
   grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr);
-  grid-template-rows: minmax(520px, 62vh) minmax(380px, auto) minmax(560px, 72vh);
+  grid-template-rows: minmax(520px, 62vh) minmax(380px, auto) auto minmax(560px, 72vh);
   grid-template-areas:
     "charts   calendar"
     "cot      calendar"
+    "report   calendar"
     "smc      smc";
 }
 
 .panel-charts   { grid-area: charts; }
 .panel-cot      { grid-area: cot; }
+.panel-report   { grid-area: report; }
 .panel-calendar { grid-area: calendar; }
 .panel-smc      { grid-area: smc; }
 
@@ -212,6 +214,79 @@ body {
   font-size: 12px;
   pointer-events: none;
 }
+
+/* ===================== LAPORAN COT ===================== */
+.panel-report {
+  --accent: var(--faint);
+  border-left: 3px solid var(--accent);
+  transition: border-color 0.2s;
+}
+.panel-report.is-accum { --accent: var(--gold); }
+.panel-report.is-dist  { --accent: var(--down); }
+.panel-report.is-tp    { --accent: #e0904a; }
+
+.report-body { display: flex; flex-direction: column; gap: 10px; }
+
+.report-empty {
+  padding: 20px 12px;
+  text-align: center;
+  color: var(--faint);
+  font-size: 12px;
+  background: var(--panel-2);
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+}
+
+.report-block {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  line-height: 1.55;
+}
+
+.report-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--faint);
+}
+
+.report-verdict {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 10%, var(--panel-2)), var(--panel-2));
+}
+
+.verdict { font-size: 18px; font-weight: 700; color: var(--accent); }
+.verdict-meta { font-size: 12px; color: var(--muted); }
+
+.report-block p { color: var(--text); }
+.report-block b.up { color: var(--up); }
+.report-block b.down { color: var(--down); }
+
+.delta-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 2px; }
+.delta {
+  font-size: 11px;
+  color: var(--faint);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 8px;
+}
+.delta b { margin-left: 4px; color: var(--text); font-weight: 500; }
+
+.reasons { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.reasons li {
+  padding-left: 12px;
+  border-left: 2px solid color-mix(in srgb, var(--accent) 60%, transparent);
+  color: var(--text);
+}
+.reasons li b { color: var(--accent); }
+
+.report-note { font-size: 11px; color: var(--faint); }
 
 /* ===================== KALENDER ===================== */
 .calendar-container {
@@ -377,6 +452,7 @@ body {
       "charts"
       "smc"
       "cot"
+      "report"
       "calendar";
   }
   .panel-smc { min-height: 600px; }

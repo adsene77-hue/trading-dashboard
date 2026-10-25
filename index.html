@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jejak Bandar XAUUSD</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head>
+<body>
+
+  <!-- ===================== HEADER ===================== -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-dot"></span>
+      <h1>Jejak Bandar <span class="accent">XAUUSD</span></h1>
+      <span class="tag">SMC · COT · MAKRO</span>
+    </div>
+    <div class="topbar-meta">
+      <span class="status"><span class="status-dot"></span>LIVE</span>
+      <span id="clock" class="mono">--:--:-- WIB</span>
+    </div>
+  </header>
+
+  <!-- ===================== GRID UTAMA ===================== -->
+  <main class="grid">
+
+    <!-- Panel 1: Jejak Likuiditas & Harga -->
+    <section class="panel panel-charts">
+      <div class="panel-head">
+        <h2>Jejak Likuiditas &amp; Harga</h2>
+        <span class="panel-sub">Spot vs Futures · Volume Profile · SMC</span>
+      </div>
+      <div class="chart-pair">
+        <div class="chart-box">
+          <div class="chart-label">OANDA:XAUUSD <small>Harga Spot</small></div>
+          <div class="tradingview-widget-container" id="tv-spot">
+            <div class="tradingview-widget-container__widget"></div>
+          </div>
+        </div>
+        <div class="chart-box">
+          <div class="chart-label">COMEX:GC1! <small>Gold Futures · Volume Institusi</small></div>
+          <div class="tradingview-widget-container" id="tv-futures">
+            <div class="tradingview-widget-container__widget"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Panel 2: Data COT -->
+    <section class="panel panel-cot">
+      <div class="panel-head">
+        <h2>Posisi COT Institusi Emas (Net Long/Short)</h2>
+        <button id="cot-load" class="btn">Muat Data CFTC</button>
+      </div>
+      <div class="cot-stats">
+        <div class="stat">
+          <span class="stat-label">Net Posisi</span>
+          <span class="stat-value mono" id="cot-net">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Long</span>
+          <span class="stat-value mono up" id="cot-long">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Short</span>
+          <span class="stat-value mono down" id="cot-short">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Laporan</span>
+          <span class="stat-value mono" id="cot-date">—</span>
+        </div>
+      </div>
+      <div class="cot-chart-wrap">
+        <canvas id="cotChart"></canvas>
+        <div class="cot-empty" id="cot-empty">Belum ada data — tekan "Muat Data CFTC"</div>
+      </div>
+      <p class="panel-foot">Sumber: CFTC Legacy Futures Only · Kode pasar 088691 (Gold, COMEX) · Non-Commercial</p>
+    </section>
+
+    <!-- Panel 3: Kalender Makro -->
+    <section class="panel panel-calendar">
+      <div class="panel-head">
+        <h2>Kalender Makro</h2>
+        <span class="panel-sub">USD · EUR · CNY · JPY</span>
+      </div>
+      <div class="tradingview-widget-container calendar-container" id="tv-calendar">
+        <div class="tradingview-widget-container__widget"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ===================== FOOTER: BERITA ===================== -->
+  <footer class="news-bar">
+    <div class="news-title">Berita Geopolitik &amp; Makroekonomi Terkini</div>
+    <div class="ticker">
+      <div class="ticker-track" id="news-track"></div>
+    </div>
+  </footer>
+
+  <script>
+    /* ---------- Jam ---------- */
+    function tickClock() {
+      const now = new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour12: false });
+      document.getElementById('clock').textContent = now + ' WIB';
+    }
+    tickClock();
+    setInterval(tickClock, 1000);
+
+    /* ---------- TradingView: Advanced Chart ---------- */
+    // Catatan: widget embed gratis hanya bisa memuat indikator bawaan TradingView.
+    // "Smart Money Concepts" (LuxAlgo) adalah skrip komunitas, sehingga tidak bisa
+    // dipasang otomatis lewat parameter "studies".
+    const CHART_STUDIES = [
+      'STD;Visible%1Range%1Volume%1Profile'
+    ];
+
+    function mountWidget(containerId, src, config) {
+      const container = document.getElementById(containerId);
+      const script = document.createElement('script');
+      script.type = 'text/javascript';
+      script.async = true;
+      script.src = src;
+      script.innerHTML = JSON.stringify(config);
+      container.appendChild(script);
+    }
+
+    function mountChart(containerId, symbol) {
+      mountWidget(containerId, 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js', {
+        autosize: true,
+        symbol: symbol,
+        interval: '60',
+        timezone: 'Asia/Jakarta',
+        theme: 'dark',
+        style: '1',
+        locale: 'id',
+        backgroundColor: 'rgba(5, 6, 8, 1)',
+        gridColor: 'rgba(255, 255, 255, 0.04)',
+        hide_side_toolbar: false,
+        allow_symbol_change: true,
+        withdateranges: true,
+        details: false,
+        calendar: false,
+        studies: CHART_STUDIES,
+        support_host: 'https://www.tradingview.com'
+      });
+    }
+
+    mountChart('tv-spot', 'OANDA:XAUUSD');
+    mountChart('tv-futures', 'COMEX:GC1!');
+
+    /* ---------- TradingView: Economic Calendar ---------- */
+    mountWidget('tv-calendar', 'https://s3.tradingview.com/external-embedding/embed-widget-events.js', {
+      colorTheme: 'dark',
+      isTransparent: true,
+      width: '100%',
+      height: '100%',
+      locale: 'id',
+      importanceFilter: '0,1',
+      countryFilter: 'us,eu,cn,jp,gb'
+    });
+
+    /* ---------- COT (CFTC) ---------- */
+    const COT_CONFIG = {
+      // Socrata API CFTC — Legacy Futures Only
+      endpoint: 'https://publicreporting.cftc.gov/resource/6dca-aqww.json',
+      marketCode: '088691', // GOLD - COMMODITY EXCHANGE INC.
+      weeks: 52
+    };
+
+    const cotChart = new Chart(document.getElementById('cotChart'), {
+      type: 'bar',
+      data: {
+        labels: [],
+        datasets: [
+          {
+            type: 'line',
+            label: 'Net Posisi',
+            data: [],
+            borderColor: '#e8c060',
+            backgroundColor: '#e8c060',
+            borderWidth: 2,
+            pointRadius: 0,
+            tension: 0.25,
+            yAxisID: 'y'
+          },
+          { label: 'Long', data: [], backgroundColor: 'rgba(38, 194, 129, 0.55)', yAxisID: 'y' },
+          { label: 'Short', data: [], backgroundColor: 'rgba(240, 82, 82, 0.55)', yAxisID: 'y' }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { labels: { color: '#8a909c', boxWidth: 10, font: { family: 'Inter', size: 11 } } },
+          tooltip: { backgroundColor: '#11141a', borderColor: '#262b35', borderWidth: 1 }
+        },
+        scales: {
+          x: { ticks: { color: '#5d6370', maxRotation: 0, autoSkipPadding: 16 }, grid: { display: false } },
+          y: { ticks: { color: '#5d6370' }, grid: { color: 'rgba(255,255,255,0.04)' } }
+        }
+      }
+    });
+
+    async function fetchCOT() {
+      const params = new URLSearchParams({
+        cftc_contract_market_code: COT_CONFIG.marketCode,
+        $order: 'report_date_as_yyyy_mm_dd DESC',
+        $limit: COT_CONFIG.weeks,
+        $select: 'report_date_as_yyyy_mm_dd,noncomm_positions_long_all,noncomm_positions_short_all'
+      });
+      const res = await fetch(`${COT_CONFIG.endpoint}?${params}`);
+      if (!res.ok) throw new Error(`CFTC API ${res.status}`);
+      const rows = await res.json();
+      return rows.reverse().map(r => {
+        const long = Number(r.noncomm_positions_long_all);
+        const short = Number(r.noncomm_positions_short_all);
+        return { date: r.report_date_as_yyyy_mm_dd.slice(0, 10), long, short, net: long - short };
+      });
+    }
+
+    function renderCOT(data) {
+      if (!data.length) return;
+      cotChart.data.labels = data.map(d => d.date);
+      cotChart.data.datasets[0].data = data.map(d => d.net);
+      cotChart.data.datasets[1].data = data.map(d => d.long);
+      cotChart.data.datasets[2].data = data.map(d => -d.short);
+      cotChart.update();
+
+      const last = data[data.length - 1];
+      const fmt = n => n.toLocaleString('id-ID');
+      const netEl = document.getElementById('cot-net');
+      netEl.textContent = (last.net > 0 ? '+' : '') + fmt(last.net);
+      netEl.className = 'stat-value mono ' + (last.net >= 0 ? 'up' : 'down');
+      document.getElementById('cot-long').textContent = fmt(last.long);
+      document.getElementById('cot-short').textContent = fmt(last.short);
+      document.getElementById('cot-date').textContent = last.date;
+      document.getElementById('cot-empty').hidden = true;
+    }
+
+    document.getElementById('cot-load').addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      const empty = document.getElementById('cot-empty');
+      btn.disabled = true;
+      btn.textContent = 'Memuat…';
+      try {
+        renderCOT(await fetchCOT());
+      } catch (err) {
+        empty.hidden = false;
+        empty.textContent = 'Gagal memuat data CFTC: ' + err.message;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Muat Data CFTC';
+      }
+    });
+
+    /* ---------- Berita (ticker) ---------- */
+    // Ganti isi array ini dengan data dari API/RSS berita pilihan Anda lewat loadNews().
+    let newsItems = [
+      { tag: 'INFO', text: 'Feed berita belum terhubung — sambungkan sumber RSS/API di fungsi loadNews()' },
+      { tag: 'FED', text: 'Slot berita kebijakan moneter The Fed' },
+      { tag: 'GEO', text: 'Slot berita geopolitik & konflik global' },
+      { tag: 'DXY', text: 'Slot berita Dolar AS & imbal hasil obligasi' },
+      { tag: 'CB', text: 'Slot berita pembelian emas bank sentral' }
+    ];
+
+    function renderNews(items) {
+      const track = document.getElementById('news-track');
+      const html = items.map(n =>
+        `<span class="news-item"><span class="news-tag">${n.tag}</span>${n.text}</span>`
+      ).join('');
+      // Digandakan agar animasi berjalan mulus tanpa jeda
+      track.innerHTML = html + html;
+    }
+
+    async function loadNews() {
+      // Contoh: const res = await fetch('URL_API_BERITA'); newsItems = await res.json();
+      renderNews(newsItems);
+    }
+
+    loadNews();
+  </script>
+</body>
+</html>

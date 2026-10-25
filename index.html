@@ -8,6 +8,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
 </head>
 <body>
 
@@ -91,6 +92,49 @@
       </div>
     </section>
 
+    <!-- Panel 4: Overlay SMC (Lightweight Charts) -->
+    <section class="panel panel-smc">
+      <div class="panel-head">
+        <div class="head-title">
+          <h2>Overlay Smart Money Concepts</h2>
+          <span class="panel-sub">PAXG/USDT (proxy XAUUSD) · Binance · Lightweight Charts</span>
+        </div>
+        <div class="smc-controls">
+          <div class="seg" id="smc-intervals">
+            <button data-interval="15m">15m</button>
+            <button data-interval="1h" class="active">1H</button>
+            <button data-interval="4h">4H</button>
+            <button data-interval="1d">1D</button>
+          </div>
+          <label class="field">Swing
+            <select id="smc-swing">
+              <option value="3">3</option>
+              <option value="5" selected>5</option>
+              <option value="10">10</option>
+            </select>
+          </label>
+        </div>
+      </div>
+      <div class="smc-toolbar">
+        <div class="smc-layers">
+          <label><input type="checkbox" data-layer="structure" checked> Struktur (BOS/CHoCH)</label>
+          <label><input type="checkbox" data-layer="ob" checked> Order Block</label>
+          <label><input type="checkbox" data-layer="fvg" checked> FVG</label>
+          <label><input type="checkbox" data-layer="pd" checked> Premium/Discount</label>
+        </div>
+        <div class="smc-info">
+          <span>Tren <b id="smc-trend">—</b></span>
+          <span>Harga <b id="smc-price" class="mono">—</b></span>
+          <span>Terakhir <b id="smc-last" class="mono">—</b></span>
+        </div>
+      </div>
+      <div class="smc-chart-wrap">
+        <div id="smc-chart"></div>
+        <canvas id="smc-overlay"></canvas>
+        <div class="smc-status" id="smc-status">Memuat data…</div>
+      </div>
+    </section>
+
   </main>
 
   <!-- ===================== FOOTER: BERITA ===================== -->
@@ -113,7 +157,7 @@
     /* ---------- TradingView: Advanced Chart ---------- */
     // Catatan: widget embed gratis hanya bisa memuat indikator bawaan TradingView.
     // "Smart Money Concepts" (LuxAlgo) adalah skrip komunitas, sehingga tidak bisa
-    // dipasang otomatis lewat parameter "studies".
+    // dipasang otomatis lewat parameter "studies" — SMC dihitung sendiri di smc.js.
     const CHART_STUDIES = [
       'STD;Visible%1Range%1Volume%1Profile'
     ];
@@ -284,5 +328,6 @@
 
     loadNews();
   </script>
+  <script src="smc.js"></script>
 </body>
 </html>

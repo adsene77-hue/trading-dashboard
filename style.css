@@ -288,6 +288,86 @@ body {
 
 .report-note { font-size: 11px; color: var(--faint); }
 
+/* ---------- Petunjuk peluang ---------- */
+.opportunity { --opp: var(--faint); margin-top: 10px; gap: 10px; border-color: color-mix(in srgb, var(--opp) 35%, var(--border)); }
+.opportunity.opp-buy  { --opp: var(--gold); }
+.opportunity.opp-sell { --opp: var(--down); }
+
+.opp-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+.opp-badge {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--bg);
+  background: var(--opp);
+  border-radius: 4px;
+  padding: 3px 9px;
+}
+
+.opp-wait { color: var(--faint); font-size: 12px; }
+
+.opp-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+
+.opp-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+}
+.opp-stat span { font-size: 10px; color: var(--faint); text-transform: uppercase; letter-spacing: 0.6px; }
+.opp-stat b { font-size: 14px; color: var(--text); }
+.opp-stat small { font-size: 11px; color: var(--muted); line-height: 1.4; }
+.opp-stat b.up { color: var(--up); }
+.opp-stat b.down { color: var(--down); }
+.opp-stat b.align-strong { color: var(--gold); }
+.opp-stat b.align-mid { color: #e0904a; }
+.opp-stat b.align-weak { color: var(--down); }
+
+.opp-steps { list-style: none; display: flex; flex-direction: column; gap: 5px; }
+.opp-steps li { position: relative; padding-left: 16px; color: var(--text); }
+.opp-steps li::before { content: '›'; position: absolute; left: 2px; color: var(--opp); font-weight: 700; }
+.opp-steps b { color: var(--opp); }
+
+.opp-zones { display: flex; flex-direction: column; gap: 6px; }
+
+.opp-zone {
+  display: grid;
+  grid-template-columns: 80px minmax(130px, 1fr) minmax(140px, 1fr) auto;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--opp);
+  border-radius: 6px;
+  background: var(--panel);
+  font-size: 12px;
+}
+.z-kind { font-weight: 600; }
+.z-kind.up { color: var(--up); }
+.z-kind.down { color: var(--down); }
+.z-range { color: var(--text); }
+.z-meta { color: var(--muted); }
+.z-inv { color: var(--faint); font-size: 11px; }
+
+.tag-in, .tag-ideal {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 3px;
+  border: 1px solid color-mix(in srgb, var(--opp) 50%, transparent);
+  color: var(--opp);
+}
+
+@media (max-width: 760px) {
+  .opp-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .opp-zone { grid-template-columns: 1fr 1fr; }
+}
+
 /* ===================== KALENDER ===================== */
 .calendar-container {
   flex: 1;

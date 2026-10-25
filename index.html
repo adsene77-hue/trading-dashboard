@@ -54,7 +54,7 @@
     <section class="panel panel-cot">
       <div class="panel-head">
         <h2>Posisi COT Institusi Emas (Net Long/Short)</h2>
-        <button id="cot-load" class="btn">Muat Data CFTC</button>
+        <button id="cot-load" class="btn">Muat Ulang CFTC</button>
       </div>
       <div class="cot-stats">
         <div class="stat">
@@ -76,7 +76,7 @@
       </div>
       <div class="cot-chart-wrap">
         <canvas id="cotChart"></canvas>
-        <div class="cot-empty" id="cot-empty">Belum ada data — tekan "Muat Data CFTC"</div>
+        <div class="cot-empty" id="cot-empty">Memuat data CFTC…</div>
       </div>
       <p class="panel-foot">Sumber: CFTC Legacy Futures Only · Kode pasar 088691 (Gold, COMEX) · Non-Commercial</p>
     </section>
@@ -88,8 +88,9 @@
         <span class="panel-sub" id="report-period">COT mingguan · Non-Commercial</span>
       </div>
       <div class="report-body" id="report-body">
-        <p class="report-empty">Muat data CFTC di panel COT untuk membuat laporan otomatis.</p>
+        <p class="report-empty">Memuat data CFTC…</p>
       </div>
+      <div class="report-block opportunity" id="opportunity"></div>
     </section>
 
     <!-- Panel 3: Kalender Makro -->
@@ -149,6 +150,9 @@
   </main>
 
   <!-- ===================== FOOTER: BERITA ===================== -->
+  <!-- Dimuat sebelum script COT & SMC agar tidak ketinggalan event pertama -->
+  <script src="peluang.js"></script>
+
   <footer class="news-bar">
     <div class="news-title">Berita Geopolitik &amp; Makroekonomi Terkini</div>
     <div class="ticker">
@@ -411,10 +415,13 @@
           </ul>
         </div>
         <p class="report-note">Deduksi otomatis dari perubahan posisi COT mingguan — bukan saran investasi.</p>`;
+
+      // Diteruskan ke peluang.js untuk petunjuk zona beli/jual
+      window.dispatchEvent(new CustomEvent('cot:update', { detail: { analysis: r, data } }));
     }
 
-    document.getElementById('cot-load').addEventListener('click', async (e) => {
-      const btn = e.currentTarget;
+    async function loadCOT() {
+      const btn = document.getElementById('cot-load');
       const empty = document.getElementById('cot-empty');
       btn.disabled = true;
       btn.textContent = 'Memuat…';
@@ -423,11 +430,16 @@
       } catch (err) {
         empty.hidden = false;
         empty.textContent = 'Gagal memuat data CFTC: ' + err.message;
+        document.getElementById('report-body').innerHTML =
+          `<p class="report-empty">Laporan belum bisa dibuat: ${err.message}</p>`;
       } finally {
         btn.disabled = false;
-        btn.textContent = 'Muat Data CFTC';
+        btn.textContent = 'Muat Ulang CFTC';
       }
-    });
+    }
+
+    document.getElementById('cot-load').addEventListener('click', loadCOT);
+    loadCOT();
 
     /* ---------- Berita (ticker) ---------- */
     // Ganti isi array ini dengan data dari API/RSS berita pilihan Anda lewat loadNews().

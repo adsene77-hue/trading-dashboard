@@ -256,6 +256,11 @@
     state.smc = computeSMC(state.candles, state.swingLen);
     state.version++;
     updateInfo();
+    // Diteruskan ke peluang.js untuk petunjuk zona beli/jual
+    const last = state.candles[state.candles.length - 1];
+    window.dispatchEvent(new CustomEvent('smc:update', {
+      detail: { smc: state.smc, price: last.close, interval: state.interval }
+    }));
   }
 
   /* ---------- Info bar ---------- */

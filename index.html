@@ -93,14 +93,29 @@
       <div class="report-block opportunity" id="opportunity"></div>
     </section>
 
-    <!-- Panel 3: Kalender Makro -->
-    <section class="panel panel-calendar">
+    <!-- Panel 3: Kalender Makro & DXY -->
+    <section class="panel panel-calendar" id="macro-panel">
       <div class="panel-head">
-        <h2>Kalender Makro</h2>
-        <span class="panel-sub">USD · EUR · CNY · JPY</span>
+        <h2>Kalender Makro &amp; DXY</h2>
+        <span class="panel-sub">Berita penting · Indeks Dolar AS</span>
       </div>
-      <div class="tradingview-widget-container calendar-container" id="tv-calendar">
-        <div class="tradingview-widget-container__widget"></div>
+      <div class="macro-split">
+        <div class="macro-col macro-cal">
+          <div class="macro-label">Economic Calendar <small>US · EU · CN · JP · GB</small></div>
+          <div class="tradingview-widget-container calendar-container" id="tv-calendar">
+            <div class="tradingview-widget-container__widget"></div>
+          </div>
+        </div>
+        <div class="macro-col macro-dxy">
+          <div class="dxy-sticky">
+            <div class="macro-label">DXY <small>Korelasi terbalik dengan emas</small></div>
+            <div class="dxy-box">
+              <div class="tradingview-widget-container" id="tv-dxy">
+                <div class="tradingview-widget-container__widget"></div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -248,8 +263,22 @@
       width: '100%',
       height: '100%',
       locale: 'id',
-      importanceFilter: '0,1',
+      importanceFilter: '1,0', // 1 = dampak tinggi, 0 = sedang
       countryFilter: 'us,eu,cn,jp,gb'
+    });
+
+    /* ---------- TradingView: Mini Chart DXY ---------- */
+    // TVC:DXY (data ICE) tidak tersedia di widget gratis; CFD Capital.com mengikuti indeks yang sama
+    mountWidget('tv-dxy', 'https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js', {
+      symbol: 'CAPITALCOM:DXY',
+      width: '100%',
+      height: '100%',
+      locale: 'id',
+      dateRange: '1D',
+      colorTheme: 'dark',
+      isTransparent: true,
+      autosize: true,
+      largeChartUrl: ''
     });
 
     /* ---------- COT (CFTC) ---------- */

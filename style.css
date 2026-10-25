@@ -80,7 +80,7 @@ body {
   display: grid;
   gap: var(--gap);
   padding: var(--gap);
-  grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr);
+  grid-template-columns: minmax(0, 1.7fr) minmax(360px, 1fr);
   grid-template-rows: minmax(520px, 62vh) minmax(380px, auto) auto minmax(560px, 72vh) auto;
   grid-template-areas:
     "charts   calendar"
@@ -494,12 +494,54 @@ body {
   .opp-zone { grid-template-columns: 1fr 1fr; }
 }
 
-/* ===================== KALENDER ===================== */
+/* ===================== KALENDER & DXY ===================== */
+/* Lebar panel (bukan lebar layar) menentukan widget berjajar atau bertumpuk */
+.panel-calendar { container-type: inline-size; }
+
+.macro-split {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: var(--gap);
+}
+
+.macro-col { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+
+.macro-label {
+  padding: 0 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--gold);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.macro-label small { font-weight: 400; color: var(--faint); margin-left: 4px; }
+
 .calendar-container {
   flex: 1;
   min-height: 500px;
   border-radius: 8px;
   overflow: hidden;
+}
+
+/* DXY tetap terlihat saat kolom kalender yang tinggi di-scroll */
+.dxy-sticky { position: sticky; top: 12px; display: flex; flex-direction: column; }
+
+/* Tinggi diatur di pembungkus karena widget menimpa style kontainernya dengan height: 100% */
+.dxy-box {
+  height: 340px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+@container (max-width: 470px) {
+  .macro-split { grid-template-columns: 1fr; }
+  .macro-dxy { order: -1; }
+  .dxy-box { height: 240px; }
 }
 
 /* ===================== OVERLAY SMC ===================== */

@@ -32,23 +32,56 @@
 
   const money = n => '$' + n.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const num = (n, d = 2) => n.toLocaleString('id-ID', { minimumFractionDigits: d, maximumFractionDigits: d });
+  // Besar pergerakan dalam pips (FX) atau dolar (emas/minyak), harga sesuai presisi aset
+  const move = n => window.Assets.fmtMove(n);
+  const price = n => window.Assets.fmtPrice(n);
+  const SHARED = ['balance', 'risk', 'mult'];
 
   /* ---------- Simpan input pengguna (kenyamanan per browser saja) ---------- */
+  let saved = {};
   try {
-    const saved = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
-    for (const key in inputs) if (saved[key] !== undefined) inputs[key].value = saved[key];
+    saved = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
   } catch (err) {
     // localStorage tidak tersedia: pakai nilai default
   }
+  // Ukuran kontrak disimpan per aset (oz emas, unit FX, barel minyak)
+  saved.contracts = saved.contracts || (saved.contract ? { XAUUSD: saved.contract } : {});
+  for (const key of SHARED) if (saved[key] !== undefined) inputs[key].value = saved[key];
 
   function saveInputs() {
+    for (const key of SHARED) saved[key] = inputs[key].value;
+    saved.contracts[window.Assets.active.key] = inputs.contract.value;
+    delete saved.contract;
     try {
-      const data = {};
-      for (const key in inputs) data[key] = inputs[key].value;
-      localStorage.setItem(STORE_KEY, JSON.stringify(data));
+      localStorage.setItem(STORE_KEY, JSON.stringify(saved));
     } catch (err) {
       // abaikan
     }
+  }
+
+  function applyAsset(asset) {
+    inputs.contract.value = saved.contracts[asset.key] ?? asset.contract.size;
+    $('vol-contract-label').textContent = `Ukuran kontrak (${asset.contract.unit}/lot)`;
+    $('vol-note').textContent = `Harga & ATR dari ${asset.candles.label}; ukuran kontrak standar ${asset.label} = ` +
+      `${asset.contract.size.toLocaleString('id-ID')} ${asset.contract.unit}/lot (cek spesifikasi broker Anda). Bukan saran investasi.`;
+  }
+
+  function resetPanel(note = 'Menunggu data candle…') {
+    latest = null;
+    level = null;
+    panel.dataset.vol = 'none';
+    $('vol-sub').textContent = `ATR ${ATR_LEN} vs rata-rata ${BASE_LEN} candle · ${window.Assets.active.candles.label}`;
+    $('vol-badge-text').textContent = 'Status: Menunggu data';
+    $('vol-level').textContent = '—';
+    $('vol-level-note').textContent = note;
+    $('vol-ratio').textContent = '—';
+    $('vol-meter-fill').style.width = '0%';
+    for (const id of ['vol-range', 'vol-atr', 'vol-base', 'vol-out-risk', 'vol-out-sl', 'vol-out-lot', 'vol-out-normal', 'vol-out-buy', 'vol-out-sell']) {
+      $(id).textContent = '—';
+    }
+    $('vol-advice').innerHTML = `<b>Saran:</b> ${note}`;
+    $('vol-warning').hidden = true;
+    $('vol-lot-warning').hidden = true;
   }
 
   /* ---------- Pemindai volatilitas (ATR Wilder) ---------- */
@@ -79,6 +112,12 @@
     return ratio > HIGH_ABOVE ? 'high' : 'low';
   }
 
+  window.addEventListener('asset:change', e => {
+    applyAsset(e.detail);
+    resetPanel();
+  });
+  window.addEventListener('smc:reset', e => resetPanel(e.detail.reason + '.'));
+
   window.addEventListener('smc:update', e => {
     const { candles, interval } = e.detail;
     const vol = computeVolatility(candles);
@@ -106,20 +145,20 @@
   /* ---------- Tampilan ---------- */
   function render() {
     if (!latest) return;
-    const { atr, baseline, ratio, activeRange, price, interval } = latest;
+    const { atr, baseline, ratio, activeRange, price: last, interval } = latest;
     const tf = TF_LABEL[interval] || interval;
 
     panel.dataset.vol = level;
     $('vol-badge-text').textContent = `Status: Memantau Gejolak · ${tf}`;
-    $('vol-sub').textContent = `ATR ${ATR_LEN} vs rata-rata ${BASE_LEN} candle · PAXG/USDT ${tf}`;
+    $('vol-sub').textContent = `ATR ${ATR_LEN} vs rata-rata ${BASE_LEN} candle · ${window.Assets.active.candles.label} ${tf}`;
     $('vol-level').textContent = level === 'high' ? 'Gejolak Tinggi' : 'Gejolak Rendah';
     $('vol-level-note').textContent = level === 'high' ? 'Ekstrem — pergerakan di atas rata-rata' : 'Stabil — pergerakan di bawah rata-rata';
     $('vol-ratio').textContent = `${num(ratio)}× rata-rata`;
     $('vol-meter-fill').style.width = Math.min(100, ratio / 2 * 100) + '%';
 
-    $('vol-range').textContent = money(activeRange);
-    $('vol-atr').textContent = money(atr);
-    $('vol-base').textContent = money(baseline);
+    $('vol-range').textContent = move(activeRange);
+    $('vol-atr').textContent = move(atr);
+    $('vol-base').textContent = move(baseline);
 
     const v = readInputs();
     const advice = $('vol-advice');
@@ -139,11 +178,11 @@
     const lotText = r => (r.lotRounded >= 0.01 ? `${num(r.lotRounded)} lot` : '< 0,01 lot');
 
     $('vol-out-risk').textContent = money(now.riskUsd);
-    $('vol-out-sl').textContent = money(now.slDist);
+    $('vol-out-sl').textContent = move(now.slDist);
     $('vol-out-lot').textContent = lotText(now);
     $('vol-out-normal').textContent = lotText(normal);
-    $('vol-out-buy').textContent = num(price - now.slDist);
-    $('vol-out-sell').textContent = num(price + now.slDist);
+    $('vol-out-buy').textContent = price(last - now.slDist);
+    $('vol-out-sell').textContent = price(last + now.slDist);
 
     const change = normal.lot > 0 ? (now.lot / normal.lot - 1) * 100 : 0;
     const changeText = Math.abs(change) < 1
@@ -152,7 +191,7 @@
 
     const esc = s => s.replace(/</g, '&lt;');
     advice.innerHTML = `<b>Saran:</b> ${ADVICE[level]}
-      <span class="vol-advice-detail">SL ${num(v.mult, 1)}× ATR = <b>${money(now.slDist)}</b> dari entry. Dengan risiko ${money(now.riskUsd)}, ukuran posisi <b>${esc(lotText(now))}</b> — ${esc(changeText)}.</span>`;
+      <span class="vol-advice-detail">SL ${num(v.mult, 1)}× ATR = <b>${move(now.slDist)}</b> dari entry. Dengan risiko ${money(now.riskUsd)}, ukuran posisi <b>${esc(lotText(now))}</b> — ${esc(changeText)}.</span>`;
 
     warn.hidden = level !== 'high';
     $('vol-lot-warning').hidden = now.lotRounded >= 0.01;
@@ -164,4 +203,6 @@
       render();
     });
   }
+
+  applyAsset(window.Assets.active);
 })();

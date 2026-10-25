@@ -5,7 +5,9 @@
    - Fair Value Gap aktif (belum terisi)
    - Zona Premium / Equilibrium / Discount
    - Filter entry: Session Killzones, MTF Trend Matrix, Fibonacci OTE
-   Data: PAXG/USDT dari Binance (token emas 1:1 troy ounce, proxy XAUUSD)
+   Data candle mengikuti aset aktif (window.Assets):
+   - Binance: PAXG/USDT (proxy XAUUSD), EUR/USDT (proxy EURUSD)
+   - Twelve Data (API key pengguna): GBP/USD, WTI/USD
    ===================================================================== */
 (() => {
   const COLORS = {
@@ -14,11 +16,13 @@
     gold: '#e8c060',
     text: '#c9cdd4'
   };
-  const SYMBOL = 'PAXGUSDT';
   // data-api.binance.vision = endpoint khusus data pasar (tetap bisa diakses walau api.binance.com diblokir)
   const SOURCES = ['https://data-api.binance.vision', 'https://api.binance.com'];
+  const TWELVE_DATA = 'https://api.twelvedata.com/time_series';
+  const TD_INTERVAL = { '15m': '15min', '1h': '1h', '4h': '4h', '1d': '1day' };
   const TZ_OFFSET = 7 * 3600; // tampilkan waktu dalam WIB
-  const POLL_MS = 5000;
+  // Kuota gratis Twelve Data 800 request/hari & 8/menit, jadi asetnya diperbarui lebih jarang
+  const POLL_MS = { binance: 5000, twelvedata: 5 * 60000 };
   const LIMITS = { structures: 12, swings: 24, obPerSide: 3, fvgs: 8 };
 
   // Killzone ICT didefinisikan dalam jam New York, sehingga pergeseran DST AS
@@ -34,10 +38,11 @@
   const OTE = [0.618, 0.786];
 
   const MTF_TFS = ['15m', '1h', '4h'];
-  const MTF_MS = 60000;
+  const MTF_MS = { binance: 60000, twelvedata: 15 * 60000 };
   const TF_LABEL = { '15m': '15m', '1h': '1H', '4h': '4H', '1d': '1D' };
 
   const state = {
+    asset: window.Assets.active,
     interval: '1h',
     swingLen: 5,
     candles: [],
@@ -48,6 +53,7 @@
     loadId: 0,
     mtfId: 0,
     pollTimer: null,
+    mtfTimer: null,
     source: SOURCES[0],
     version: 0
   };
@@ -89,13 +95,17 @@
     open: +r[1], high: +r[2], low: +r[3], close: +r[4]
   });
 
-  async function fetchKlines(limit, interval = state.interval) {
+  const priceFormat = asset => ({ type: 'price', precision: asset.decimals, minMove: 1 / 10 ** asset.decimals });
+  const fmtP = n => window.Assets.fmtPrice(n, state.asset);
+
+  async function fetchKlines(limit, interval = state.interval, asset = state.asset) {
+    if (asset.candles.provider === 'twelvedata') return fetchTwelveData(limit, interval, asset);
     // Coba sumber terakhir yang berhasil dulu, lalu sisanya
     const order = [state.source, ...SOURCES.filter(s => s !== state.source)];
     let lastErr;
     for (const base of order) {
       try {
-        const res = await fetch(`${base}/api/v3/klines?symbol=${SYMBOL}&interval=${interval}&limit=${limit}`);
+        const res = await fetch(`${base}/api/v3/klines?symbol=${asset.candles.symbol}&interval=${interval}&limit=${limit}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         state.source = base;
         return (await res.json()).map(toCandle);
@@ -106,9 +116,45 @@
     throw lastErr;
   }
 
+  async function fetchTwelveData(limit, interval, asset) {
+    const key = window.Assets.twelveDataKey;
+    if (!key) throw new Error('API key Twelve Data belum diisi');
+    const params = new URLSearchParams({
+      symbol: asset.candles.symbol,
+      interval: TD_INTERVAL[interval],
+      outputsize: limit,
+      timezone: 'UTC',
+      order: 'asc',
+      apikey: key
+    });
+    const res = await fetch(`${TWELVE_DATA}?${params}`);
+    // Twelve Data mengirim alasan error dalam JSON, juga untuk status 401/429
+    const json = await res.json().catch(() => null);
+    if (!json || json.status === 'error' || !res.ok) {
+      const code = json?.code || res.status;
+      throw new Error(
+        code === 401 ? 'API key Twelve Data tidak valid atau tidak berlaku untuk simbol ini' :
+        code === 429 ? 'kuota Twelve Data habis, coba lagi beberapa saat lagi' :
+        json?.message || `HTTP ${res.status}`);
+    }
+    return json.values.map(v => {
+      const iso = v.datetime.length > 10 ? v.datetime.replace(' ', 'T') + 'Z' : v.datetime + 'T00:00:00Z';
+      return { time: Date.parse(iso) / 1000 + TZ_OFFSET, open: +v.open, high: +v.high, low: +v.low, close: +v.close };
+    });
+  }
+
+  function resetDownstream(reason) {
+    window.dispatchEvent(new CustomEvent('smc:reset', { detail: { reason } }));
+  }
+
   async function load() {
     const id = ++state.loadId;
     clearTimeout(state.pollTimer);
+    if (window.Assets.needsKey(state.asset)) {
+      setStatus(`Data candle ${state.asset.label} memakai Twelve Data — isi API key gratis di atas chart untuk mengaktifkan SMC, Lantai Komando, dan Kalkulator Volatilitas.`);
+      resetDownstream(`Data candle ${state.asset.label} butuh API key Twelve Data`);
+      return;
+    }
     setStatus('Memuat data…');
     try {
       const candles = await fetchKlines(700);
@@ -121,7 +167,9 @@
       setStatus('');
       schedulePoll(id);
     } catch (err) {
-      if (id === state.loadId) setStatus('Gagal memuat data Binance: ' + err.message);
+      if (id !== state.loadId) return;
+      setStatus(`Gagal memuat data ${state.asset.candles.label}: ${err.message}`);
+      resetDownstream(`Gagal memuat data candle: ${err.message}`);
     }
   }
 
@@ -149,7 +197,7 @@
         // Gagal sementara: coba lagi di putaran berikutnya
       }
       schedulePoll(id);
-    }, POLL_MS);
+    }, POLL_MS[state.asset.candles.provider]);
   }
 
   /* ---------- Mesin SMC ---------- */
@@ -364,9 +412,15 @@
   async function refreshMTF() {
     const id = ++state.mtfId;
     const len = state.swingLen;
+    const asset = state.asset;
+    if (window.Assets.needsKey(asset)) {
+      state.mtf = null;
+      renderMTF();
+      return;
+    }
     const rows = await Promise.all(MTF_TFS.map(async tf => {
       try {
-        const r = computeSMC(await fetchKlines(500, tf), len);
+        const r = computeSMC(await fetchKlines(500, tf, asset), len);
         return { tf, trend: r.trend, ev: r.structures[r.structures.length - 1] || null };
       } catch (err) {
         return { tf, error: true };
@@ -378,11 +432,20 @@
     window.dispatchEvent(new CustomEvent('smc:mtf', { detail: rows }));
   }
 
+  function scheduleMTF() {
+    clearTimeout(state.mtfTimer);
+    state.mtfTimer = setTimeout(() => {
+      refreshMTF();
+      scheduleMTF();
+    }, MTF_MS[state.asset.candles.provider]);
+  }
+
   function renderMTF() {
     mtfEl.hidden = !state.show.mtf;
     if (!state.show.mtf) return;
     if (!state.mtf) {
-      mtfEl.innerHTML = '<div class="mtf-title">MTF Trend</div><div class="mtf-foot">Memuat…</div>';
+      const waiting = window.Assets.needsKey(state.asset) ? 'Butuh API key Twelve Data' : 'Memuat…';
+      mtfEl.innerHTML = `<div class="mtf-title">MTF Trend</div><div class="mtf-foot">${waiting}</div>`;
       return;
     }
     const body = state.mtf.map(r => {
@@ -390,7 +453,7 @@
       if (r.error) return `<tr${active}><td>${TF_LABEL[r.tf]}</td><td colspan="2" class="muted">gagal memuat</td></tr>`;
       const cls = r.trend === 1 ? 'up' : r.trend === -1 ? 'down' : 'muted';
       const trend = r.trend === 1 ? '▲ Bullish' : r.trend === -1 ? '▼ Bearish' : '— Netral';
-      const ev = r.ev ? `${r.ev.type} ${r.ev.price.toFixed(2)}` : '—';
+      const ev = r.ev ? `${r.ev.type} ${fmtP(r.ev.price)}` : '—';
       return `<tr${active}><td>${TF_LABEL[r.tf]}</td><td class="${cls}">${trend}</td><td class="mono muted">${ev}</td></tr>`;
     }).join('');
     const trends = state.mtf.filter(r => !r.error).map(r => r.trend);
@@ -411,7 +474,7 @@
     // Diteruskan ke peluang.js untuk petunjuk zona beli/jual
     const last = state.candles[state.candles.length - 1];
     window.dispatchEvent(new CustomEvent('smc:update', {
-      detail: { smc: state.smc, price: last.close, interval: state.interval, candles: state.candles }
+      detail: { smc: state.smc, price: last.close, interval: state.interval, candles: state.candles, asset: state.asset }
     }));
   }
 
@@ -422,10 +485,10 @@
     const trendEl = document.getElementById('smc-trend');
     trendEl.textContent = trend === 1 ? 'Bullish' : trend === -1 ? 'Bearish' : 'Netral';
     trendEl.className = trend === 1 ? 'up' : trend === -1 ? 'down' : '';
-    document.getElementById('smc-price').textContent = last ? last.close.toFixed(2) : '—';
+    document.getElementById('smc-price').textContent = last ? fmtP(last.close) : '—';
     const ev = structures[structures.length - 1];
     const evEl = document.getElementById('smc-last');
-    evEl.textContent = ev ? `${ev.type} ${ev.dir === 1 ? '▲' : '▼'} ${ev.price.toFixed(2)}` : '—';
+    evEl.textContent = ev ? `${ev.type} ${ev.dir === 1 ? '▲' : '▼'} ${fmtP(ev.price)}` : '—';
     evEl.className = ev ? (ev.dir === 1 ? 'up' : 'down') : '';
 
     const oteEl = document.getElementById('smc-ote');
@@ -435,7 +498,7 @@
       const lo = Math.min(a, b);
       const hi = Math.max(a, b);
       const inZone = last.close >= lo && last.close <= hi;
-      oteEl.textContent = `${lo.toFixed(2)}–${hi.toFixed(2)}${inZone ? ' · harga di OTE' : ''}`;
+      oteEl.textContent = `${fmtP(lo)}–${fmtP(hi)}${inZone ? ' · harga di OTE' : ''}`;
       oteEl.className = 'mono' + (inZone ? ' gold' : '');
     } else {
       oteEl.textContent = '—';
@@ -544,7 +607,7 @@
       if (labelYs.some(ly => Math.abs(ly - y) < 11)) continue;
       labelYs.push(y);
       ctx.fillStyle = alpha(COLORS.gold, inOte ? 0.95 : 0.6);
-      ctx.fillText(`${r} · ${p.toFixed(2)}${r === 0.705 ? ' OTE' : ''}`, x2 + 6, y - 2);
+      ctx.fillText(`${r} · ${fmtP(p)}${r === 0.705 ? ' OTE' : ''}`, x2 + 6, y - 2);
     }
     ctx.setLineDash([]);
   }
@@ -702,9 +765,72 @@
     });
   }
 
+  /* ---------- Multi-aset & API key Twelve Data ---------- */
+  const keyBox = document.getElementById('td-key');
+  const keyForm = document.getElementById('td-key-form');
+  const keyInput = document.getElementById('td-key-input');
+  const keyClear = document.getElementById('td-key-clear');
+
+  function renderAssetUI() {
+    const a = state.asset;
+    document.getElementById('smc-sub').textContent = `${a.candles.label} (${a.candles.note}) · Lightweight Charts`;
+    const usesKey = a.candles.provider === 'twelvedata';
+    keyBox.hidden = !usesKey;
+    if (!usesKey) return;
+    const hasKey = !!window.Assets.twelveDataKey;
+    document.getElementById('td-key-text').textContent = hasKey
+      ? `Data candle ${a.label} dari Twelve Data (key tersimpan hanya di browser ini). Diperbarui tiap 5 menit karena kuota gratis 800 request/hari.`
+      : `Data candle ${a.label} memakai Twelve Data dan butuh API key gratis milik Anda (disimpan hanya di browser ini).`;
+    keyForm.hidden = hasKey;
+    keyClear.hidden = !hasKey;
+  }
+
+  function resetInfo() {
+    for (const id of ['smc-trend', 'smc-price', 'smc-last', 'smc-ote']) {
+      const node = document.getElementById(id);
+      node.textContent = '—';
+      node.className = id === 'smc-trend' ? '' : 'mono';
+    }
+  }
+
+  function switchAsset(asset) {
+    state.asset = asset;
+    // Naikkan id agar respons request aset lama diabaikan
+    state.loadId++;
+    state.mtfId++;
+    clearTimeout(state.pollTimer);
+    state.candles = [];
+    state.smc = null;
+    state.killzones = [];
+    state.mtf = null;
+    series.setData([]);
+    series.applyOptions({ priceFormat: priceFormat(asset) });
+    state.version++;
+    resetInfo();
+    renderAssetUI();
+    renderMTF();
+    load();
+    refreshMTF();
+    scheduleMTF();
+  }
+
+  keyForm.addEventListener('submit', e => {
+    e.preventDefault();
+    const value = keyInput.value.trim();
+    if (!value) return;
+    keyInput.value = '';
+    window.Assets.twelveDataKey = value;
+  });
+  keyClear.addEventListener('click', () => { window.Assets.twelveDataKey = null; });
+
+  window.addEventListener('asset:change', e => switchAsset(e.detail));
+  window.addEventListener('asset:key', () => switchAsset(state.asset));
+
+  series.applyOptions({ priceFormat: priceFormat(state.asset) });
+  renderAssetUI();
   renderKillzoneLegend();
   renderMTF();
   load();
   refreshMTF();
-  setInterval(refreshMTF, MTF_MS);
+  scheduleMTF();
 })();

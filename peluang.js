@@ -12,9 +12,11 @@
   const TF_LABEL = { '15m': '15m', '1h': '1H', '4h': '4H', '1d': '1D' };
 
   window.addEventListener('cot:update', e => { state.cot = e.detail; render(); });
-  window.addEventListener('smc:update', e => { state.smc = e.detail; render(); });
+  window.addEventListener('smc:update', e => { state.smc = e.detail; state.reason = null; render(); });
+  window.addEventListener('asset:change', () => { state.cot = null; state.smc = null; state.reason = null; render(); });
+  window.addEventListener('smc:reset', e => { state.smc = null; state.reason = e.detail.reason; render(); });
 
-  const fmt = n => n.toFixed(2);
+  const fmt = n => window.Assets.fmtPrice(n);
 
   /* ---------- Bias COT ---------- */
   function cotBias({ analysis, data }) {
@@ -67,7 +69,7 @@
       const waiting = [!state.cot && 'data COT', !state.smc && 'grafik SMC'].filter(Boolean).join(' & ');
       el.className = 'report-block opportunity';
       el.innerHTML = `<span class="report-label">Petunjuk Peluang · Jejak Bandar</span>
-        <p class="opp-wait">Menunggu ${waiting}…</p>`;
+        <p class="opp-wait">${state.reason && !state.smc ? `${state.reason}. Zona beli/jual belum bisa dihitung.` : `Menunggu ${waiting}…`}</p>`;
       return;
     }
 
@@ -142,7 +144,7 @@
       <ul class="opp-steps">${steps.map(s => `<li>${s}</li>`).join('')}</ul>
       ${bias.dir ? `<span class="report-label">Zona ${sideWord} terdekat (${tf})</span>` : ''}
       ${zoneRows ? `<div class="opp-zones">${zoneRows}</div>` : noZone}
-      <p class="report-note">Petunjuk edukatif dari aturan otomatis, bukan saran investasi. Harga zona berbasis PAXG/USDT — sesuaikan selisihnya dengan harga XAUUSD di broker Anda.</p>`;
+      <p class="report-note">Petunjuk edukatif dari aturan otomatis, bukan saran investasi. Harga zona berbasis ${window.Assets.active.candles.label} — sesuaikan selisihnya dengan harga ${window.Assets.active.label} di broker Anda.</p>`;
   }
 
   render();

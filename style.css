@@ -63,6 +63,46 @@ body {
 
 .topbar-meta { display: flex; align-items: center; gap: 16px; color: var(--muted); font-size: 12px; }
 
+/* Bilah pemilih aset */
+.asset-nav {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.asset-nav::-webkit-scrollbar { display: none; }
+.asset-nav button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  flex-shrink: 0;
+  gap: 1px;
+  padding: 5px 12px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.asset-nav button b { font: 600 12px var(--mono); letter-spacing: 0.3px; }
+.asset-nav button small { font-size: 10px; color: var(--faint); }
+.asset-nav button:hover { color: var(--text); background: rgba(255, 255, 255, 0.03); }
+.asset-nav button.active { background: rgba(232, 192, 96, 0.12); color: var(--gold); }
+.asset-nav button.active small { color: color-mix(in srgb, var(--gold) 70%, var(--faint)); }
+
+/* Layar sempit: pemilih aset turun ke baris sendiri selebar layar */
+@media (max-width: 900px) {
+  .topbar { flex-wrap: wrap; }
+  .asset-nav { order: 3; flex: 1 1 100%; }
+  .asset-nav button { flex: 1 0 auto; align-items: center; }
+}
+
 .status { display: flex; align-items: center; gap: 6px; font-weight: 600; letter-spacing: 1px; color: var(--up); }
 .status-dot {
   width: 7px; height: 7px; border-radius: 50%;
@@ -81,14 +121,17 @@ body {
   gap: var(--gap);
   padding: var(--gap);
   grid-template-columns: minmax(0, 1.7fr) minmax(360px, 1fr);
-  grid-template-rows: minmax(520px, 62vh) minmax(380px, auto) auto minmax(560px, 72vh) auto;
+  grid-template-rows: minmax(520px, 62vh) minmax(380px, auto) auto auto minmax(560px, 72vh) auto;
   grid-template-areas:
     "charts   calendar"
     "cot      calendar"
+    "sent     calendar"
     "report   calendar"
     "smc      smc"
     "signal   vol";
 }
+
+.panel-sent { grid-area: sent; }
 
 /* Tinggi panel sinyal mengikuti isinya, tidak ikut memanjang setinggi kalkulator */
 .panel-signal { grid-area: signal; align-self: start; }
@@ -456,6 +499,62 @@ body {
   .vol-stats, .vol-results { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
+/* ===================== SENTIMEN INSTITUSI & RETAIL ===================== */
+.sent-body { display: flex; flex-direction: column; gap: 10px; }
+
+.sent-summary {
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--gold);
+}
+.sent-summary.crowded { border-left-color: #e0904a; }
+.sent-summary b.up { color: var(--up); }
+.sent-summary b.down { color: var(--down); }
+
+.sent-rows { display: flex; flex-direction: column; gap: 6px; }
+
+.sent-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 1.3fr) minmax(110px, 1fr) minmax(150px, 1.2fr);
+  align-items: center;
+  gap: 12px;
+  padding: 9px 12px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.sent-row.is-retail { border-style: dashed; }
+
+.sent-name { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sent-name b { font-size: 13px; color: var(--text); }
+.sent-name small { font-size: 11px; color: var(--faint); line-height: 1.35; }
+
+.sent-ratio { display: flex; flex-direction: column; gap: 4px; }
+.sent-ratio small { display: flex; justify-content: space-between; font: 500 10px var(--mono); }
+.sent-bar { height: 6px; border-radius: 3px; background: rgba(240, 82, 82, 0.55); overflow: hidden; }
+.sent-bar span { display: block; height: 100%; background: var(--up); }
+
+.sent-net { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 10px; }
+.sent-net b { font-size: 14px; font-weight: 600; text-align: right; }
+.sent-net small { grid-column: 1 / -1; text-align: right; font-size: 10px; color: var(--faint); }
+.sent-net-bar { position: relative; height: 6px; border-radius: 3px; background: #1a1e26; }
+.sent-net-bar::after { content: ''; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--faint); }
+.sent-net-bar span { position: absolute; top: 0; bottom: 0; border-radius: 3px; }
+.sent-net-bar.up span { left: 50%; background: var(--up); }
+.sent-net-bar.down span { right: 50%; background: var(--down); }
+.sent-row .up { color: var(--up); }
+.sent-row .down { color: var(--down); }
+
+@media (max-width: 760px) {
+  .sent-row { grid-template-columns: 1fr 1fr; }
+  .sent-name { grid-column: 1 / -1; }
+}
+
 /* ===================== LAPORAN COT ===================== */
 .panel-report {
   --accent: var(--faint);
@@ -723,6 +822,36 @@ body {
   align-self: center;
 }
 
+/* API key Twelve Data (hanya untuk aset yang memakainya) */
+.td-key {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  border: 1px dashed color-mix(in srgb, var(--gold) 45%, var(--border));
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.td-key[hidden], .td-key [hidden] { display: none; }
+.td-key form { display: flex; gap: 6px; flex: 1 1 260px; min-width: 0; }
+.td-key input {
+  flex: 1;
+  min-width: 0;
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 9px;
+  font: 500 12px var(--mono);
+}
+.td-key input:focus { outline: none; border-color: var(--gold); }
+.td-key a { color: var(--gold); text-decoration: none; white-space: nowrap; }
+.td-key a:hover { text-decoration: underline; }
+.btn-ghost { color: var(--muted); border-color: var(--border); }
+
 /* Killzone legend */
 .kz-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-bottom: 8px; font-size: 11px; }
 .kz-chip { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
@@ -862,6 +991,7 @@ body {
       "signal"
       "vol"
       "cot"
+      "sent"
       "report"
       "calendar";
   }

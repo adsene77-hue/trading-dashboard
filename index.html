@@ -16,9 +16,10 @@
   <header class="topbar">
     <div class="brand">
       <span class="brand-dot"></span>
-      <h1>Jejak Bandar <span class="accent">XAUUSD</span></h1>
+      <h1>Jejak Bandar <span class="accent" id="brand-asset">XAUUSD</span></h1>
       <span class="tag">SMC · COT · MAKRO</span>
     </div>
+    <nav class="asset-nav" id="asset-nav" aria-label="Pilih aset"></nav>
     <div class="topbar-meta">
       <span class="status"><span class="status-dot"></span>LIVE</span>
       <span id="clock" class="mono">--:--:-- WIB</span>
@@ -36,13 +37,13 @@
       </div>
       <div class="chart-pair">
         <div class="chart-box">
-          <div class="chart-label">OANDA:XAUUSD <small>Harga Spot</small></div>
+          <div class="chart-label" id="tv-spot-label">OANDA:XAUUSD <small>Harga Spot</small></div>
           <div class="tradingview-widget-container" id="tv-spot">
             <div class="tradingview-widget-container__widget"></div>
           </div>
         </div>
         <div class="chart-box">
-          <div class="chart-label">BINANCE:PAXGUSDT <small>Token Emas · Volume Transaksi</small></div>
+          <div class="chart-label" id="tv-futures-label">BINANCE:PAXGUSDT <small>Token Emas · Volume Transaksi</small></div>
           <div class="tradingview-widget-container" id="tv-futures">
             <div class="tradingview-widget-container__widget"></div>
           </div>
@@ -53,7 +54,7 @@
     <!-- Panel 2: Data COT -->
     <section class="panel panel-cot">
       <div class="panel-head">
-        <h2>Posisi COT Institusi Emas (Net Long/Short)</h2>
+        <h2 id="cot-title">Posisi COT Institusi Emas (Net Long/Short)</h2>
         <button id="cot-load" class="btn">Muat Ulang CFTC</button>
       </div>
       <div class="cot-stats">
@@ -78,7 +79,20 @@
         <canvas id="cotChart"></canvas>
         <div class="cot-empty" id="cot-empty">Memuat data CFTC…</div>
       </div>
-      <p class="panel-foot">Sumber: CFTC Legacy Futures Only · Kode pasar 088691 (Gold, COMEX) · Non-Commercial</p>
+      <p class="panel-foot" id="cot-foot">Sumber: CFTC Legacy Futures Only · Kode pasar 088691 (Gold, COMEX) · Non-Commercial</p>
+    </section>
+
+    <!-- Panel 2a: Sentimen Institusi & Retail -->
+    <section class="panel panel-sent" id="sentiment-panel">
+      <div class="panel-head">
+        <div class="head-title">
+          <h2 id="sent-title">Sentimen Institusi &amp; Retail</h2>
+          <span class="panel-sub" id="sent-sub">Memuat…</span>
+        </div>
+      </div>
+      <div class="sent-body" id="sent-body">
+        <p class="report-empty">Memuat data CFTC…</p>
+      </div>
     </section>
 
     <!-- Panel 2b: Laporan Analisis COT -->
@@ -108,7 +122,7 @@
         </div>
         <div class="macro-col macro-dxy">
           <div class="dxy-sticky">
-            <div class="macro-label">DXY <small>Korelasi terbalik dengan emas</small></div>
+            <div class="macro-label">DXY <small id="dxy-note">Korelasi terbalik dengan emas</small></div>
             <div class="dxy-box">
               <div class="tradingview-widget-container" id="tv-dxy">
                 <div class="tradingview-widget-container__widget"></div>
@@ -124,7 +138,7 @@
       <div class="panel-head">
         <div class="head-title">
           <h2>Overlay Smart Money Concepts</h2>
-          <span class="panel-sub">PAXG/USDT (proxy XAUUSD) · Binance · Lightweight Charts</span>
+          <span class="panel-sub" id="smc-sub">PAXG/USDT (proxy XAUUSD) · Binance · Lightweight Charts</span>
         </div>
         <div class="smc-controls">
           <div class="seg" id="smc-intervals">
@@ -159,6 +173,15 @@
           <span>Terakhir <b id="smc-last" class="mono">—</b></span>
           <span>OTE <b id="smc-ote" class="mono">—</b></span>
         </div>
+      </div>
+      <div class="td-key" id="td-key" hidden>
+        <span id="td-key-text">Data candle aset ini memakai Twelve Data dan butuh API key gratis.</span>
+        <form id="td-key-form">
+          <input type="password" id="td-key-input" placeholder="Tempel API key Twelve Data" autocomplete="off" spellcheck="false">
+          <button type="submit" class="btn">Simpan</button>
+        </form>
+        <button type="button" class="btn btn-ghost" id="td-key-clear" hidden>Hapus key</button>
+        <a href="https://twelvedata.com/pricing" target="_blank" rel="noopener">Daftar gratis ↗</a>
       </div>
       <div class="kz-legend" id="smc-kz-legend"></div>
       <div class="smc-chart-wrap">
@@ -226,7 +249,7 @@
         <label>Saldo (USD)<input type="number" id="vol-balance" value="1000" min="0" step="100" inputmode="decimal"></label>
         <label>Risiko per trade (%)<input type="number" id="vol-risk" value="1" min="0" max="100" step="0.25" inputmode="decimal"></label>
         <label>Stop loss (× ATR)<input type="number" id="vol-mult" value="1.5" min="0" step="0.1" inputmode="decimal"></label>
-        <label>Ukuran kontrak (oz/lot)<input type="number" id="vol-contract" value="100" min="0" step="1" inputmode="decimal"></label>
+        <label><span id="vol-contract-label">Ukuran kontrak (oz/lot)</span><input type="number" id="vol-contract" value="100" min="0" step="1" inputmode="decimal"></label>
       </div>
       <p class="vol-input-error" id="vol-input-error" hidden>Isi semua kolom dengan angka positif (risiko maksimal 100%).</p>
 
@@ -239,16 +262,19 @@
         <div class="vol-stat"><span>SL jika Sell</span><b class="mono down" id="vol-out-sell">—</b></div>
       </div>
       <p class="vol-input-error" id="vol-lot-warning" hidden>Lot di bawah 0,01 — saldo/risiko terlalu kecil untuk jarak SL ini. Pertimbangkan menunggu volatilitas turun.</p>
-      <p class="report-note">Harga & ATR dari PAXG/USDT; ukuran kontrak standar XAUUSD = 100 oz/lot (cek spesifikasi broker Anda). Bukan saran investasi.</p>
+      <p class="report-note" id="vol-note">Harga & ATR dari PAXG/USDT; ukuran kontrak standar XAUUSD = 100 oz/lot (cek spesifikasi broker Anda). Bukan saran investasi.</p>
     </section>
 
   </main>
 
   <!-- ===================== FOOTER: BERITA ===================== -->
+  <!-- assets.js paling awal: modul lain membaca aset aktif darinya -->
+  <script src="assets.js"></script>
   <!-- Dimuat sebelum script COT & SMC agar tidak ketinggalan event pertama -->
   <script src="peluang.js"></script>
   <script src="signal_engine.js"></script>
   <script src="volatility_risk.js"></script>
+  <script src="sentiment.js"></script>
 
   <footer class="news-bar">
     <div class="news-title">Berita Geopolitik &amp; Makroekonomi Terkini</div>
@@ -284,11 +310,11 @@
       container.appendChild(script);
     }
 
-    function mountChart(containerId, symbol) {
+    function mountChart(containerId, symbol, interval = '60') {
       mountWidget(containerId, 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js', {
         autosize: true,
         symbol: symbol,
-        interval: '60',
+        interval: interval,
         timezone: 'Asia/Jakarta',
         theme: 'dark',
         style: '1',
@@ -305,9 +331,23 @@
       });
     }
 
-    mountChart('tv-spot', 'OANDA:XAUUSD');
-    // COMEX:GC1! tidak tersedia di widget gratis; PAXG/USDT punya volume transaksi riil (bukan tick volume)
-    mountChart('tv-futures', 'BINANCE:PAXGUSDT');
+    // Widget TradingView tidak bisa mengganti simbol setelah dimuat, jadi dipasang ulang
+    // setiap aset berganti. Futures (COMEX:GC1!, NYMEX:CL1!) tidak tersedia di widget gratis.
+    function mountAssetCharts(asset) {
+      const charts = [
+        ['tv-spot', asset.tv.spot, '60', asset.tv.spotNote],
+        ['tv-futures', asset.tv.second, asset.tv.secondInterval, asset.tv.secondNote]
+      ];
+      for (const [id, symbol, interval, note] of charts) {
+        document.getElementById(id).innerHTML = '<div class="tradingview-widget-container__widget"></div>';
+        document.getElementById(id + '-label').innerHTML = `${symbol} <small>${note}</small>`;
+        mountChart(id, symbol, interval);
+      }
+      document.getElementById('dxy-note').textContent = asset.dxyNote;
+    }
+
+    mountAssetCharts(Assets.active);
+    window.addEventListener('asset:change', e => mountAssetCharts(e.detail));
 
     /* ---------- TradingView: Economic Calendar ---------- */
     mountWidget('tv-calendar', 'https://s3.tradingview.com/external-embedding/embed-widget-events.js', {
@@ -336,11 +376,11 @@
 
     /* ---------- COT (CFTC) ---------- */
     const COT_CONFIG = {
-      // Socrata API CFTC — Legacy Futures Only
+      // Socrata API CFTC — Legacy Futures Only (kode pasar diambil dari aset aktif)
       endpoint: 'https://publicreporting.cftc.gov/resource/6dca-aqww.json',
-      marketCode: '088691', // GOLD - COMMODITY EXCHANGE INC.
       weeks: 52
     };
+    let cotLoadId = 0;
 
     const cotChart = new Chart(document.getElementById('cotChart'), {
       type: 'bar',
@@ -377,9 +417,9 @@
       }
     });
 
-    async function fetchCOT() {
+    async function fetchCOT(asset = Assets.active) {
       const params = new URLSearchParams({
-        cftc_contract_market_code: COT_CONFIG.marketCode,
+        cftc_contract_market_code: asset.cot.code,
         $order: 'report_date_as_yyyy_mm_dd DESC',
         $limit: COT_CONFIG.weeks,
         $select: 'report_date_as_yyyy_mm_dd,noncomm_positions_long_all,noncomm_positions_short_all'
@@ -420,7 +460,8 @@
     const DRASTIC_RATIO = 1.5;
     const MINOR_RATIO = 0.25;
 
-    function analyzeCOT(data) {
+    function analyzeCOT(data, asset = Assets.active) {
+      const { drivers, noun } = asset;
       const cur = data[data.length - 1];
       const prev = data[data.length - 2];
       const dLong = cur.long - prev.long;
@@ -455,14 +496,14 @@
 
       const reasons = [];
       if (dLong > 0 && drasticLong) {
-        reasons.push('Institusi menambah posisi beli besar-besaran, mengindikasikan ekspektasi pelemahan Dolar AS atau meningkatnya ketegangan geopolitik (Safe Haven demand).');
+        reasons.push(`Institusi menambah posisi beli besar-besaran, mengindikasikan ${drivers.bull}.`);
       } else if (dLong > 0) {
-        reasons.push('Institusi menambah posisi beli secara bertahap, menandakan sentimen bullish terhadap emas masih terjaga.');
+        reasons.push(`Institusi menambah posisi beli secara bertahap, menandakan sentimen bullish terhadap ${noun} masih terjaga.`);
       }
       if (dShort > 0) {
         reasons.push(drasticShort
-          ? 'Institusi menambah posisi jual dalam jumlah besar — aksi hedging (lindung nilai) agresif atau ekspektasi inflasi mulai stabil sehingga daya tarik emas menurun.'
-          : 'Institusi melakukan aksi hedging (lindung nilai) atau berekspektasi inflasi mulai stabil.');
+          ? `Institusi menambah posisi jual dalam jumlah besar — aksi hedging (lindung nilai) agresif atau ${drivers.bear}.`
+          : `Institusi melakukan aksi hedging (lindung nilai) atau ${drivers.bearShort}.`);
       }
       if (dLong < 0 && dShort <= 0) {
         reasons.push(drasticLong
@@ -474,7 +515,7 @@
       if (dShort < 0 && !minorShort) {
         reasons.push(dLong >= 0
           ? 'Terjadi penutupan posisi jual (short covering), tekanan jual mereda dan memperkuat dorongan naik.'
-          : 'Posisi jual juga dikurangi, menandakan institusi sedang mengurangi eksposur secara keseluruhan (risk-off dari pasar emas futures).');
+          : `Posisi jual juga dikurangi, menandakan institusi sedang mengurangi eksposur secara keseluruhan (risk-off dari pasar ${noun} futures).`);
       }
       if (!reasons.length) {
         reasons.push('Posisi institusi relatif tidak berubah; pasar kemungkinan sedang menunggu katalis berikutnya.');
@@ -533,24 +574,52 @@
     }
 
     async function loadCOT() {
+      const id = ++cotLoadId;
+      const asset = Assets.active;
       const btn = document.getElementById('cot-load');
       const empty = document.getElementById('cot-empty');
+      document.getElementById('cot-title').textContent = `Posisi COT Institusi ${asset.name} (Net Long/Short)`;
+      document.getElementById('cot-foot').textContent =
+        `Sumber: CFTC Legacy Futures Only · Kode pasar ${asset.cot.code} (${asset.cot.name}) · Non-Commercial`;
       btn.disabled = true;
       btn.textContent = 'Memuat…';
       try {
-        renderCOT(await fetchCOT());
+        const data = await fetchCOT(asset);
+        // Abaikan hasil lama jika aset sudah diganti selama memuat
+        if (id === cotLoadId) renderCOT(data);
       } catch (err) {
+        if (id !== cotLoadId) return;
         empty.hidden = false;
         empty.textContent = 'Gagal memuat data CFTC: ' + err.message;
         document.getElementById('report-body').innerHTML =
           `<p class="report-empty">Laporan belum bisa dibuat: ${err.message}</p>`;
       } finally {
-        btn.disabled = false;
-        btn.textContent = 'Muat Ulang CFTC';
+        if (id === cotLoadId) {
+          btn.disabled = false;
+          btn.textContent = 'Muat Ulang CFTC';
+        }
       }
     }
 
+    function resetCOT() {
+      cotChart.data.labels = [];
+      for (const ds of cotChart.data.datasets) ds.data = [];
+      cotChart.update();
+      for (const id of ['cot-net', 'cot-long', 'cot-short', 'cot-date']) document.getElementById(id).textContent = '—';
+      const empty = document.getElementById('cot-empty');
+      empty.hidden = false;
+      empty.textContent = 'Memuat data CFTC…';
+      const report = document.getElementById('cot-report');
+      report.classList.remove('is-accum', 'is-dist', 'is-tp');
+      document.getElementById('report-period').textContent = 'COT mingguan · Non-Commercial';
+      document.getElementById('report-body').innerHTML = '<p class="report-empty">Memuat data CFTC…</p>';
+    }
+
     document.getElementById('cot-load').addEventListener('click', loadCOT);
+    window.addEventListener('asset:change', () => {
+      resetCOT();
+      loadCOT();
+    });
     loadCOT();
 
     /* ---------- Berita (ticker) ---------- */

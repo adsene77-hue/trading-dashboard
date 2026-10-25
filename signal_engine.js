@@ -24,7 +24,7 @@ let signalConditions = {
     waktuKillzone: 'Waktu Killzone'
   };
 
-  const feed = { smc: null, mtf: null };
+  const feed = { smc: null, mtf: null, reason: null };
   const ui = {
     panel: document.getElementById('signal-panel'),
     orb: document.getElementById('signal-orb'),
@@ -41,10 +41,19 @@ let signalConditions = {
   let soundOn = false;
   let audioCtx = null;
 
-  window.addEventListener('smc:update', e => { feed.smc = e.detail; });
+  window.addEventListener('smc:update', e => { feed.smc = e.detail; feed.reason = null; });
   window.addEventListener('smc:mtf', e => { feed.mtf = e.detail; });
+  // Ganti aset / data candle tidak tersedia: buang data lama agar tidak memicu sinyal palsu
+  const clearFeed = reason => {
+    feed.smc = null;
+    feed.mtf = null;
+    feed.reason = reason;
+    evaluateSignal();
+  };
+  window.addEventListener('asset:change', e => clearFeed(null));
+  window.addEventListener('smc:reset', e => clearFeed(e.detail.reason));
 
-  const fmt = n => n.toFixed(2);
+  const fmt = n => window.Assets.fmtPrice(n);
   const fibLevel = (f, r) => (f.dir === 1 ? f.high - (f.high - f.low) * r : f.low + (f.high - f.low) * r);
 
   /* ---------- Arah kandidat: konsensus MTF, jika belum ada pakai tren TF aktif ---------- */
@@ -75,7 +84,7 @@ let signalConditions = {
     for (const key in signalConditions) signalConditions[key] = false;
 
     if (!feed.smc) {
-      for (const key in LABELS) detail[key] = 'Menunggu data grafik…';
+      for (const key in LABELS) detail[key] = feed.reason || 'Menunggu data grafik…';
       return render(0, detail, null);
     }
 
@@ -138,7 +147,9 @@ let signalConditions = {
     ui.panel.dataset.state = state;
     ui.orb.className = 'signal-orb ' + state;
     ui.count.textContent = `${done}/${keys.length}`;
-    if (interval) ui.sub.textContent = `Pemindai 5 syarat SMC · PAXG/USDT ${TF_LABEL[interval] || interval} · tiap ${SCAN_MS / 1000} dtk`;
+    const asset = window.Assets.active;
+    ui.sub.textContent = `Pemindai 5 syarat SMC · ${asset.label} (${asset.candles.label})` +
+      (interval ? ` ${TF_LABEL[interval] || interval} · tiap ${SCAN_MS / 1000} dtk` : '');
 
     ui.dir.textContent = dir === 1 ? 'Arah kandidat: BUY' : dir === -1 ? 'Arah kandidat: SELL' : 'Arah kandidat: belum jelas';
     ui.dir.className = 'signal-dir ' + (dir === 1 ? 'up' : dir === -1 ? 'down' : '');
@@ -149,7 +160,9 @@ let signalConditions = {
     } else {
       const missing = keys.filter(k => !signalConditions[k]).map(k => LABELS[k]);
       ui.title.textContent = 'WAIT';
-      ui.desc.textContent = `Belum ada setup yang lengkap. Menunggu: ${missing.join(', ')}.`;
+      ui.desc.textContent = !feed.smc && feed.reason
+        ? `${feed.reason}. Pemindai aktif kembali begitu data candle tersedia.`
+        : `Belum ada setup yang lengkap. Menunggu: ${missing.join(', ')}.`;
     }
 
     ui.list.innerHTML = keys.map(k => `

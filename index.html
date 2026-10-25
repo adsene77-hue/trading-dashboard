@@ -191,12 +191,64 @@
       </div>
     </section>
 
+    <!-- Panel 6: Kalkulator Volatilitas & Risiko -->
+    <section class="panel panel-vol" id="volatility-risk-panel" data-vol="none">
+      <div class="panel-head">
+        <div class="head-title">
+          <h2>Kalkulator Volatilitas &amp; Risiko</h2>
+          <span class="panel-sub" id="vol-sub">ATR 14 vs rata-rata 100 candle · PAXG/USDT</span>
+        </div>
+        <span class="vol-badge"><span class="vol-badge-dot"></span><span id="vol-badge-text">Status: Menunggu data</span></span>
+      </div>
+
+      <div class="vol-status">
+        <div class="vol-level-box">
+          <span class="report-label">Status Volatilitas</span>
+          <strong class="vol-level" id="vol-level">—</strong>
+          <small id="vol-level-note">Menunggu data candle…</small>
+        </div>
+        <div class="vol-gauge">
+          <div class="vol-gauge-head"><span>Rendah</span><b id="vol-ratio" class="mono">—</b><span>Tinggi</span></div>
+          <div class="vol-meter"><div class="vol-meter-fill" id="vol-meter-fill"></div><span class="vol-meter-mid" title="Rata-rata"></span></div>
+        </div>
+      </div>
+
+      <div class="vol-stats">
+        <div class="vol-stat"><span>Range candle aktif</span><b class="mono" id="vol-range">—</b></div>
+        <div class="vol-stat"><span>ATR 14</span><b class="mono" id="vol-atr">—</b></div>
+        <div class="vol-stat"><span>Rata-rata ATR</span><b class="mono" id="vol-base">—</b></div>
+      </div>
+
+      <div class="vol-warning" id="vol-warning" hidden>⚠ Peringatan: volatilitas di atas rata-rata — lebarkan Stop Loss dan kecilkan lot.</div>
+      <div class="vol-advice" id="vol-advice"><b>Saran:</b> Menunggu data candle…</div>
+
+      <div class="vol-calc">
+        <label>Saldo (USD)<input type="number" id="vol-balance" value="1000" min="0" step="100" inputmode="decimal"></label>
+        <label>Risiko per trade (%)<input type="number" id="vol-risk" value="1" min="0" max="100" step="0.25" inputmode="decimal"></label>
+        <label>Stop loss (× ATR)<input type="number" id="vol-mult" value="1.5" min="0" step="0.1" inputmode="decimal"></label>
+        <label>Ukuran kontrak (oz/lot)<input type="number" id="vol-contract" value="100" min="0" step="1" inputmode="decimal"></label>
+      </div>
+      <p class="vol-input-error" id="vol-input-error" hidden>Isi semua kolom dengan angka positif (risiko maksimal 100%).</p>
+
+      <div class="vol-results">
+        <div class="vol-stat"><span>Risiko maksimal</span><b class="mono" id="vol-out-risk">—</b></div>
+        <div class="vol-stat"><span>Jarak SL</span><b class="mono" id="vol-out-sl">—</b></div>
+        <div class="vol-stat accent"><span>Lot disarankan</span><b class="mono" id="vol-out-lot">—</b></div>
+        <div class="vol-stat"><span>Lot saat normal</span><b class="mono" id="vol-out-normal">—</b></div>
+        <div class="vol-stat"><span>SL jika Buy</span><b class="mono down" id="vol-out-buy">—</b></div>
+        <div class="vol-stat"><span>SL jika Sell</span><b class="mono down" id="vol-out-sell">—</b></div>
+      </div>
+      <p class="vol-input-error" id="vol-lot-warning" hidden>Lot di bawah 0,01 — saldo/risiko terlalu kecil untuk jarak SL ini. Pertimbangkan menunggu volatilitas turun.</p>
+      <p class="report-note">Harga & ATR dari PAXG/USDT; ukuran kontrak standar XAUUSD = 100 oz/lot (cek spesifikasi broker Anda). Bukan saran investasi.</p>
+    </section>
+
   </main>
 
   <!-- ===================== FOOTER: BERITA ===================== -->
   <!-- Dimuat sebelum script COT & SMC agar tidak ketinggalan event pertama -->
   <script src="peluang.js"></script>
   <script src="signal_engine.js"></script>
+  <script src="volatility_risk.js"></script>
 
   <footer class="news-bar">
     <div class="news-title">Berita Geopolitik &amp; Makroekonomi Terkini</div>

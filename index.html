@@ -154,11 +154,34 @@
       </div>
     </section>
 
+    <!-- Panel 5: Lantai Komando Sinyal (terpisah dari kanvas chart) -->
+    <section class="panel panel-signal" id="signal-panel" data-state="wait">
+      <div class="panel-head">
+        <div class="head-title">
+          <h2>Lantai Komando Sinyal</h2>
+          <span class="panel-sub" id="signal-sub">Pemindai 5 syarat SMC · PAXG/USDT</span>
+        </div>
+        <div class="signal-corner">
+          <button class="btn" id="signal-sound" aria-pressed="false">🔇 Suara: Mati</button>
+          <div class="signal-orb wait" id="signal-orb" title="Status sinyal"><span id="signal-count">0/5</span></div>
+        </div>
+      </div>
+      <div class="signal-body">
+        <div class="signal-status">
+          <strong class="signal-title" id="signal-title">WAIT</strong>
+          <span class="signal-dir" id="signal-dir">Arah kandidat: —</span>
+          <p class="signal-desc" id="signal-desc">Menunggu data…</p>
+        </div>
+        <ul class="signal-checklist" id="signal-list"></ul>
+      </div>
+    </section>
+
   </main>
 
   <!-- ===================== FOOTER: BERITA ===================== -->
   <!-- Dimuat sebelum script COT & SMC agar tidak ketinggalan event pertama -->
   <script src="peluang.js"></script>
+  <script src="signal_engine.js"></script>
 
   <footer class="news-bar">
     <div class="news-title">Berita Geopolitik &amp; Makroekonomi Terkini</div>

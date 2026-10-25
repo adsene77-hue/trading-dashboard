@@ -81,13 +81,16 @@ body {
   gap: var(--gap);
   padding: var(--gap);
   grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr);
-  grid-template-rows: minmax(520px, 62vh) minmax(380px, auto) auto minmax(560px, 72vh);
+  grid-template-rows: minmax(520px, 62vh) minmax(380px, auto) auto minmax(560px, 72vh) auto;
   grid-template-areas:
     "charts   calendar"
     "cot      calendar"
     "report   calendar"
-    "smc      smc";
+    "smc      smc"
+    "signal   signal";
 }
+
+.panel-signal { grid-area: signal; }
 
 .panel-charts   { grid-area: charts; }
 .panel-cot      { grid-area: cot; }
@@ -213,6 +216,129 @@ body {
   color: var(--faint);
   font-size: 12px;
   pointer-events: none;
+}
+.cot-empty[hidden] { display: none; }
+
+/* ===================== LANTAI KOMANDO SINYAL ===================== */
+.panel-signal {
+  --sig: var(--faint);
+  border-top: 2px solid var(--sig);
+  transition: border-color 0.3s;
+}
+.panel-signal[data-state="buy"]  { --sig: var(--up); }
+.panel-signal[data-state="sell"] { --sig: var(--down); }
+
+.signal-corner { display: flex; align-items: center; gap: 12px; }
+
+.signal-orb {
+  width: 54px;
+  height: 54px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font: 600 13px var(--mono);
+  color: var(--muted);
+  background: radial-gradient(circle at 35% 30%, #2a2f3a, #12151b);
+  border: 2px solid #2a2f3a;
+  transition: background 0.3s, border-color 0.3s, box-shadow 0.3s;
+}
+.signal-orb.buy {
+  color: #001a0e;
+  background: radial-gradient(circle at 35% 30%, #5ef0b0, var(--up));
+  border-color: #5ef0b0;
+  animation: orb-glow-buy 1.2s ease-in-out infinite;
+}
+.signal-orb.sell {
+  color: #1f0000;
+  background: radial-gradient(circle at 35% 30%, #ff8a8a, var(--down));
+  border-color: #ff8a8a;
+  animation: orb-glow-sell 1.2s ease-in-out infinite;
+}
+
+@keyframes orb-glow-buy {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(38, 194, 129, 0.55); }
+  50% { box-shadow: 0 0 0 10px rgba(38, 194, 129, 0); }
+}
+@keyframes orb-glow-sell {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(240, 82, 82, 0.55); }
+  50% { box-shadow: 0 0 0 10px rgba(240, 82, 82, 0); }
+}
+
+.signal-body {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(0, 2fr);
+  gap: var(--gap);
+  align-items: stretch;
+}
+
+.signal-status {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--sig);
+  border-radius: 8px;
+}
+
+.signal-title { font-size: 22px; font-weight: 700; letter-spacing: 0.5px; color: var(--muted); line-height: 1.2; }
+.panel-signal[data-state="buy"] .signal-title { color: var(--up); }
+.panel-signal[data-state="sell"] .signal-title { color: var(--down); }
+
+.signal-dir { font-size: 12px; font-weight: 600; color: var(--faint); }
+.signal-dir.up { color: var(--up); }
+.signal-dir.down { color: var(--down); }
+.signal-desc { font-size: 13px; color: var(--text); line-height: 1.5; }
+
+.signal-checklist {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+}
+
+.signal-checklist li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  transition: border-color 0.2s;
+}
+.signal-checklist li.ok { border-color: rgba(38, 194, 129, 0.45); }
+
+.check-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 700;
+}
+.signal-checklist li.ok .check-icon { background: var(--up); color: #00140b; }
+.signal-checklist li.no .check-icon { background: transparent; border: 2px solid #3a404c; }
+.signal-checklist li.no .check-icon::after { content: ''; width: 6px; height: 6px; border-radius: 50%; background: #5d6370; }
+
+.check-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.check-text b { font-size: 13px; font-weight: 600; color: var(--text); }
+.check-text small { font-size: 11px; color: var(--faint); line-height: 1.4; overflow-wrap: anywhere; }
+.signal-checklist li.ok .check-text small { color: var(--muted); }
+
+@media (max-width: 760px) {
+  .signal-body { grid-template-columns: 1fr; }
+  .signal-orb { width: 44px; height: 44px; font-size: 12px; }
+  .signal-title { font-size: 18px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .signal-orb.buy, .signal-orb.sell { animation: none; }
 }
 
 /* ===================== LAPORAN COT ===================== */
@@ -576,6 +702,7 @@ body {
     grid-template-areas:
       "charts"
       "smc"
+      "signal"
       "cot"
       "report"
       "calendar";

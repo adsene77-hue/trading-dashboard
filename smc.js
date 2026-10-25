@@ -335,6 +335,15 @@
     return runs;
   }
 
+  // Dipakai signal_engine.js untuk mengecek killzone berdasarkan jam sekarang
+  window.SMCSessions = {
+    activeKillzone(nowSec = Date.now() / 1000) {
+      const clock = nyClockOf(Math.floor(nowSec));
+      if (!goldMarketOpen(clock)) return null;
+      return KILLZONES.find(z => clock.min >= z.start && clock.min < z.end) || null;
+    }
+  };
+
   function renderKillzoneLegend() {
     const legend = document.getElementById('smc-kz-legend');
     // Selisih jam New York terhadap UTC saat ini (otomatis -4 saat DST, -5 saat standar)
@@ -366,6 +375,7 @@
     if (id !== state.mtfId) return;
     state.mtf = rows;
     renderMTF();
+    window.dispatchEvent(new CustomEvent('smc:mtf', { detail: rows }));
   }
 
   function renderMTF() {
@@ -401,7 +411,7 @@
     // Diteruskan ke peluang.js untuk petunjuk zona beli/jual
     const last = state.candles[state.candles.length - 1];
     window.dispatchEvent(new CustomEvent('smc:update', {
-      detail: { smc: state.smc, price: last.close, interval: state.interval }
+      detail: { smc: state.smc, price: last.close, interval: state.interval, candles: state.candles }
     }));
   }
 
@@ -467,9 +477,16 @@
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
     for (const run of state.killzones) {
-      const x1 = X(run.start - 0.5);
-      const x2 = X(run.end + 0.5);
-      if (x1 === null || x2 === null || x2 < 0 || x1 > paneW) continue;
+      // logicalToCoordinate hanya andal untuk indeks bulat, jadi tepi blok
+      // dihitung dari pusat candle ± setengah jarak antar-candle
+      const xs = X(run.start);
+      const xe = X(run.end);
+      const next = X(run.start + 1);
+      if (xs === null || xe === null || next === null) continue;
+      const half = (next - xs) / 2;
+      const x1 = xs - half;
+      const x2 = xe + half;
+      if (x2 < 0 || x1 > paneW) continue;
       ctx.fillStyle = alpha(run.zone.color, 0.07);
       ctx.fillRect(x1, 0, x2 - x1, paneH);
       // Label penuh jika muat, label pendek jika blok sempit (mis. 1H)
@@ -510,7 +527,10 @@
     ctx.font = '500 9px Inter, sans-serif';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'bottom';
-    for (const r of FIB_LEVELS) {
+    const labelYs = [];
+    // Level OTE diberi label lebih dulu; label lain dilewati jika bertumpuk (impuls kecil)
+    const order = [...FIB_LEVELS].sort((a, b) => (b >= OTE[0] && b <= OTE[1]) - (a >= OTE[0] && a <= OTE[1]));
+    for (const r of order) {
       const p = fibLevel(f, r);
       const y = Y(p);
       if (y === null) continue;
@@ -521,6 +541,8 @@
       ctx.moveTo(x1, Math.round(y) + 0.5);
       ctx.lineTo(paneW, Math.round(y) + 0.5);
       ctx.stroke();
+      if (labelYs.some(ly => Math.abs(ly - y) < 11)) continue;
+      labelYs.push(y);
       ctx.fillStyle = alpha(COLORS.gold, inOte ? 0.95 : 0.6);
       ctx.fillText(`${r} · ${p.toFixed(2)}${r === 0.705 ? ' OTE' : ''}`, x2 + 6, y - 2);
     }

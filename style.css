@@ -337,6 +337,20 @@ body {
 .signal-dir.down { color: var(--down); }
 .signal-desc { font-size: 13px; color: var(--text); line-height: 1.5; }
 
+.signal-guard { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+.guard-row {
+  font-size: 11px;
+  line-height: 1.45;
+  padding: 5px 8px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+.guard-row.block { color: #ffb4b4; background: rgba(240, 82, 82, 0.1); border-color: rgba(240, 82, 82, 0.4); font-weight: 600; }
+.guard-row.warn { color: #f3c98b; background: rgba(224, 144, 74, 0.08); border-color: rgba(224, 144, 74, 0.35); }
+
+.td-key.is-proxy { border-color: rgba(224, 144, 74, 0.6); background: rgba(224, 144, 74, 0.05); }
+
 .signal-checklist {
   list-style: none;
   display: grid;
@@ -564,6 +578,7 @@ body {
 .panel-report.is-accum { --accent: var(--gold); }
 .panel-report.is-dist  { --accent: var(--down); }
 .panel-report.is-tp    { --accent: #e0904a; }
+.panel-report.is-cover { --accent: #7fb0ff; }
 
 .report-body { display: flex; flex-direction: column; gap: 10px; }
 

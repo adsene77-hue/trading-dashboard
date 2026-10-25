@@ -1,0 +1,46 @@
+# Menyalin kalender ekonomi minggu ini (Forex Factory) ke data/calendar.json.
+# Server kalender tidak mengizinkan akses langsung dari browser (tanpa header CORS),
+# sedangkan raw.githubusercontent.com mengizinkannya — jadi dashboard membaca salinan ini.
+name: Perbarui kalender ekonomi
+
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ambil kalender minggu ini
+        run: |
+          curl -fsSL -A "Mozilla/5.0 (trading-dashboard calendar sync)" \
+            https://nfs.faireconomy.media/ff_calendar_thisweek.json -o /tmp/ff.json
+          python3 - <<'PY'
+          import json, datetime
+          events = json.load(open('/tmp/ff.json'))
+          assert isinstance(events, list) and events, 'kalender kosong'
+          json.dump({
+              'updated': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+              'source': 'https://nfs.faireconomy.media/ff_calendar_thisweek.json',
+              'events': events,
+          }, open('data/calendar.json', 'w'), indent=1)
+          PY
+
+      - name: Commit jika jadwal berubah
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/calendar.json
+          # Abaikan perubahan yang hanya pada stempel waktu
+          if git diff --cached -I '"updated"' --quiet; then
+            echo "Jadwal tidak berubah"
+          else
+            git commit -m "Perbarui kalender ekonomi"
+            git push
+          fi

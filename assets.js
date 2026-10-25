@@ -7,6 +7,12 @@
   const STORE_KEY = 'jejak-bandar:asset';
   const KEY_STORE = 'jejak-bandar:twelvedata-key';
 
+  // Jam pasar spot dalam waktu New York (menit sejak 00:00). Candle di luar jam ini
+  // (akhir pekan & jeda harian) dibuang agar struktur SMC tidak dibentuk oleh data
+  // proxy yang tetap diperdagangkan saat pasar spot tutup.
+  const SESSION_METALS = { sunOpen: 18 * 60, friClose: 17 * 60, dailyBreak: [17 * 60, 18 * 60] }; // emas & minyak (CME/OTC)
+  const SESSION_FX = { sunOpen: 17 * 60, friClose: 17 * 60, dailyBreak: null };
+
   const ASSETS = {
     XAUUSD: {
       key: 'XAUUSD',
@@ -22,7 +28,11 @@
         secondInterval: '60',
         secondNote: 'Token Emas · Volume Transaksi'
       },
-      candles: { provider: 'binance', symbol: 'PAXGUSDT', label: 'PAXG/USDT', note: 'proxy XAUUSD · Binance' },
+      candles: { provider: 'binance', symbol: 'PAXGUSDT', label: 'PAXG/USDT', note: 'proxy XAUUSD · Binance', proxy: true,
+        proxyGap: 'PAXG terukur $4–11 di atas XAUUSD spot (23–25 Okt 2026)' },
+      spotData: { provider: 'twelvedata', symbol: 'XAU/USD', label: 'XAU/USD', note: 'spot · Twelve Data' },
+      session: SESSION_METALS,
+      newsCurrencies: ['USD'],
       contract: { size: 100, unit: 'oz' },
       cot: { code: '088691', name: 'Gold (COMEX)', report: 'disagg' },
       drivers: {
@@ -46,7 +56,11 @@
         secondInterval: '60',
         secondNote: 'EUR/USDT · Volume Transaksi'
       },
-      candles: { provider: 'binance', symbol: 'EURUSDT', label: 'EUR/USDT', note: 'proxy EURUSD · Binance' },
+      candles: { provider: 'binance', symbol: 'EURUSDT', label: 'EUR/USDT', note: 'proxy EURUSD · Binance', proxy: true,
+        proxyGap: 'EUR/USDT rata-rata ±11 pips (1–18 pips) dari EURUSD spot' },
+      spotData: { provider: 'twelvedata', symbol: 'EUR/USD', label: 'EUR/USD', note: 'spot · Twelve Data' },
+      session: SESSION_FX,
+      newsCurrencies: ['USD', 'EUR'],
       contract: { size: 100000, unit: 'EUR' },
       cot: { code: '099741', name: 'Euro FX (CME)', report: 'tff' },
       drivers: {
@@ -70,7 +84,9 @@
         secondInterval: '240',
         secondNote: 'Struktur 4H (volume riil tidak tersedia di widget gratis)'
       },
-      candles: { provider: 'twelvedata', symbol: 'GBP/USD', label: 'GBP/USD', note: 'Twelve Data' },
+      candles: { provider: 'twelvedata', symbol: 'GBP/USD', label: 'GBP/USD', note: 'spot · Twelve Data' },
+      session: SESSION_FX,
+      newsCurrencies: ['USD', 'GBP'],
       contract: { size: 100000, unit: 'GBP' },
       cot: { code: '096742', name: 'British Pound (CME)', report: 'tff' },
       drivers: {
@@ -95,6 +111,9 @@
         secondNote: 'Struktur 4H (futures NYMEX tidak tersedia di widget gratis)'
       },
       candles: { provider: 'twelvedata', symbol: 'WTI/USD', label: 'WTI/USD', note: 'Twelve Data' },
+      session: SESSION_METALS,
+      newsCurrencies: ['USD'],
+      newsTitles: /crude oil inventories|opec/i, // data minyak relevan meski dampaknya "Medium"
       contract: { size: 1000, unit: 'barel' },
       cot: { code: '067651', name: 'WTI Crude (NYMEX)', report: 'disagg' },
       drivers: {
@@ -153,10 +172,44 @@
       window.dispatchEvent(new CustomEvent('asset:key', { detail: !!value }));
     },
 
+    // Sumber candle efektif: harga spot asli (Twelve Data) bila key tersedia,
+    // selain itu proxy Binance untuk emas & EUR
+    source(asset = active) {
+      if (asset.spotData && Assets.twelveDataKey) return { ...asset.spotData, proxy: false, fallback: asset.candles };
+      return { ...asset.candles, proxy: !!asset.candles.proxy };
+    },
+
     needsKey(asset = active) {
-      return asset.candles.provider === 'twelvedata' && !Assets.twelveDataKey;
-    }
+      return Assets.source(asset).provider === 'twelvedata' && !Assets.twelveDataKey;
+    },
+
+    // Apakah pasar spot aset buka pada waktu UTC tertentu (detik)
+    marketOpen(utcSec, asset = active) {
+      const { day, min } = nyClock(utcSec);
+      const s = asset.session;
+      if (day === 'Sat') return false;
+      if (day === 'Fri' && min >= s.friClose) return false;
+      if (day === 'Sun') return min >= s.sunOpen;
+      return !(s.dailyBreak && min >= s.dailyBreak[0] && min < s.dailyBreak[1]);
+    },
+
+    nyClock
   };
+
+  /* ---------- Jam New York (DST otomatis lewat Intl) ---------- */
+  const nyFmt = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short', hour: 'numeric', minute: 'numeric', hourCycle: 'h23' });
+  const nyCache = new Map();
+  function nyClock(utcSec) {
+    let v = nyCache.get(utcSec);
+    if (v === undefined) {
+      if (nyCache.size > 50000) nyCache.clear();
+      const parts = nyFmt.formatToParts(new Date(utcSec * 1000));
+      const get = type => parts.find(p => p.type === type).value;
+      v = { day: get('weekday'), min: Number(get('hour')) * 60 + Number(get('minute')) };
+      nyCache.set(utcSec, v);
+    }
+    return v;
+  }
 
   /* ---------- Bilah navigasi aset di header ---------- */
   const nav = document.getElementById('asset-nav');

@@ -34,7 +34,8 @@ let signalConditions = {
     desc: document.getElementById('signal-desc'),
     list: document.getElementById('signal-list'),
     sub: document.getElementById('signal-sub'),
-    sound: document.getElementById('signal-sound')
+    sound: document.getElementById('signal-sound'),
+    guard: document.getElementById('signal-guard')
   };
 
   let readyDir = 0; // arah sinyal yang sudah dibunyikan, agar beep hanya sekali per setup
@@ -141,22 +142,38 @@ let signalConditions = {
   function render(dir, detail, interval) {
     const keys = Object.keys(signalConditions);
     const done = keys.filter(k => signalConditions[k]).length;
-    const ready = done === keys.length && dir !== 0;
+    const setup = done === keys.length && dir !== 0;
+    const asset = window.Assets.active;
+    const src = feed.smc ? feed.smc.source : window.Assets.source(asset);
+    const news = window.NewsFilter ? window.NewsFilter.status(asset) : { state: 'unknown', reason: 'Filter berita tidak dimuat' };
+    // Penjaga validitas: jangan entry saat rilis berita besar
+    const blocked = setup && news.state === 'blackout';
+    const ready = setup && !blocked;
+    const side = dir === 1 ? 'BUY' : 'SELL';
     const state = ready ? (dir === 1 ? 'buy' : 'sell') : 'wait';
 
     ui.panel.dataset.state = state;
     ui.orb.className = 'signal-orb ' + state;
     ui.count.textContent = `${done}/${keys.length}`;
-    const asset = window.Assets.active;
-    ui.sub.textContent = `Pemindai 5 syarat SMC · ${asset.label} (${asset.candles.label})` +
+    ui.sub.textContent = `Pemindai 5 syarat SMC · ${asset.label} (${src.label}${src.proxy ? ' · proxy' : ''})` +
       (interval ? ` ${TF_LABEL[interval] || interval} · tiap ${SCAN_MS / 1000} dtk` : '');
 
     ui.dir.textContent = dir === 1 ? 'Arah kandidat: BUY' : dir === -1 ? 'Arah kandidat: SELL' : 'Arah kandidat: belum jelas';
     ui.dir.className = 'signal-dir ' + (dir === 1 ? 'up' : dir === -1 ? 'down' : '');
 
-    if (ready) {
-      ui.title.textContent = `SIGNAL READY - EKSEKUSI SEKARANG (${dir === 1 ? 'BUY' : 'SELL'})`;
-      ui.desc.textContent = 'Kelima syarat terpenuhi. Konfirmasi ulang di chart, tentukan stop loss di luar zona sweep, lalu eksekusi sesuai manajemen risiko.';
+    if (blocked) {
+      ui.title.textContent = 'WAIT — FILTER BERITA';
+      ui.desc.textContent = `Kelima syarat ${side} terpenuhi, tetapi ada rilis ${window.NewsFilter.describe(news.active)} ` +
+        `(${window.NewsFilter.fmtTime(news.active[0].time)}). Hindari entry ${window.NewsFilter.BEFORE_MIN / 60} jam sebelum hingga ${window.NewsFilter.AFTER_MIN / 60} jam sesudah rilis.`;
+    } else if (ready && news.state === 'unknown') {
+      ui.title.textContent = `SETUP ${side} LENGKAP — CEK KALENDER MANUAL`;
+      ui.desc.textContent = `Kelima syarat terpenuhi, tetapi ${news.reason.toLowerCase()}. Pastikan tidak ada rilis berdampak tinggi dalam 2 jam ke depan sebelum entry.`;
+    } else if (ready && src.proxy) {
+      ui.title.textContent = `SETUP ${side} LENGKAP — VERIFIKASI HARGA DI BROKER`;
+      ui.desc.textContent = `Kelima syarat terpenuhi pada harga proxy ${src.label}. Pastikan struktur yang sama terlihat di chart ${asset.label} broker Anda dan sesuaikan level entry/SL dengan selisih harganya.`;
+    } else if (ready) {
+      ui.title.textContent = `SIGNAL READY - EKSEKUSI SEKARANG (${side})`;
+      ui.desc.textContent = 'Kelima syarat terpenuhi pada harga spot dan tidak ada rilis berita besar dalam jendela waktu dekat. Tentukan stop loss di luar zona sweep, lalu eksekusi sesuai manajemen risiko.';
     } else {
       const missing = keys.filter(k => !signalConditions[k]).map(k => LABELS[k]);
       ui.title.textContent = 'WAIT';
@@ -171,9 +188,30 @@ let signalConditions = {
         <span class="check-text"><b>${LABELS[k]}</b><small>${detail[k]}</small></span>
       </li>`).join('');
 
+    renderGuards(news, src, asset);
+
     // Bunyikan beep hanya saat setup baru menjadi lengkap (atau arahnya berganti)
     if (ready && readyDir !== dir) beep();
     readyDir = ready ? dir : 0;
+  }
+
+  /* ---------- Penjaga validitas: berita & sumber harga ---------- */
+  function renderGuards(news, src, asset) {
+    const nf = window.NewsFilter;
+    const rows = [];
+    if (news.state === 'blackout') {
+      rows.push(['block', `⛔ Rilis berita: ${nf.describe(news.active)} · ${nf.fmtTime(news.active[0].time)} (${nf.fmtIn(news.active[0].time)})`]);
+    } else if (news.state === 'clear') {
+      rows.push(news.next.length
+        ? ['ok', `Berita besar berikutnya (${asset.newsCurrencies.join('/')}): ${nf.describe(news.next)} · ${nf.fmtTime(news.next[0].time)} (${nf.fmtIn(news.next[0].time)})`]
+        : ['ok', `Tidak ada rilis berdampak tinggi ${asset.newsCurrencies.join('/')} tersisa minggu ini`]);
+    } else {
+      rows.push(['warn', `⚠ ${news.reason} — filter berita tidak aktif`]);
+    }
+    if (src.proxy) {
+      rows.push(['warn', `⚠ Harga proxy ${src.label}: ${asset.candles.proxyGap}${src.fallbackReason ? ` (Twelve Data gagal: ${src.fallbackReason})` : ''}`]);
+    }
+    ui.guard.innerHTML = rows.map(([cls, text]) => `<div class="guard-row ${cls}">${text}</div>`).join('');
   }
 
   /* ---------- Audio peringatan ---------- */

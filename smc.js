@@ -54,6 +54,8 @@
     mtfId: 0,
     pollTimer: null,
     mtfTimer: null,
+    src: null,        // sumber candle yang benar-benar dipakai (spot atau proxy)
+    spotFailed: {},   // aset yang harga spot Twelve Data-nya gagal → pakai proxy
     source: SOURCES[0],
     version: 0
   };
@@ -98,14 +100,59 @@
   const priceFormat = asset => ({ type: 'price', precision: asset.decimals, minMove: 1 / 10 ** asset.decimals });
   const fmtP = n => window.Assets.fmtPrice(n, state.asset);
 
+  // Sumber efektif aset ini; jika harga spot Twelve Data pernah gagal, langsung pakai proxy
+  function sourceFor(asset) {
+    const failed = state.spotFailed[asset.key];
+    if (failed) return { ...asset.candles, proxy: true, fallbackReason: failed };
+    return window.Assets.source(asset);
+  }
+
+  // Ambil candle lalu buang yang terbentuk saat pasar spot tutup (akhir pekan & jeda harian),
+  // karena proxy Binance tetap diperdagangkan dan akan membentuk struktur palsu
   async function fetchKlines(limit, interval = state.interval, asset = state.asset) {
-    if (asset.candles.provider === 'twelvedata') return fetchTwelveData(limit, interval, asset);
+    let src = sourceFor(asset);
+    let candles;
+    try {
+      candles = await fetchFrom(src, limit, interval);
+    } catch (err) {
+      // Simbol spot di luar paket key Twelve Data: jatuh ke proxy Binance, dan ingat agar kuota tidak terbuang
+      if (!src.fallback || /kuota/.test(err.message)) throw err;
+      state.spotFailed[asset.key] = err.message;
+      src = sourceFor(asset);
+      candles = await fetchFrom(src, limit, interval);
+    }
+    if (asset === state.asset) state.src = src;
+    return candles.filter(c => inSession(c, interval, asset));
+  }
+
+  // Candle dipakai hanya jika lebih dari separuh rentangnya jatuh di jam pasar spot.
+  // Batas candle 4H/1D Binance mengikuti UTC, sehingga candle Jumat sore / Minggu sore NY
+  // bisa sebagian besar berisi perdagangan proxy saat pasar spot tutup.
+  const TF_SEC = { '15m': 900, '1h': 3600, '4h': 14400, '1d': 86400 };
+  function inSession(candle, interval, asset) {
+    const start = candle.time - TZ_OFFSET;
+    const span = TF_SEC[interval];
+    const step = Math.max(900, span / 24);
+    let open = 0;
+    let total = 0;
+    for (let t = start; t < start + span; t += step) {
+      total++;
+      if (window.Assets.marketOpen(t, asset)) open++;
+    }
+    return open / total > 0.5;
+  }
+
+  function fetchFrom(src, limit, interval) {
+    return src.provider === 'twelvedata' ? fetchTwelveData(src.symbol, limit, interval) : fetchBinance(src.symbol, limit, interval);
+  }
+
+  async function fetchBinance(symbol, limit, interval) {
     // Coba sumber terakhir yang berhasil dulu, lalu sisanya
     const order = [state.source, ...SOURCES.filter(s => s !== state.source)];
     let lastErr;
     for (const base of order) {
       try {
-        const res = await fetch(`${base}/api/v3/klines?symbol=${asset.candles.symbol}&interval=${interval}&limit=${limit}`);
+        const res = await fetch(`${base}/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         state.source = base;
         return (await res.json()).map(toCandle);
@@ -116,11 +163,11 @@
     throw lastErr;
   }
 
-  async function fetchTwelveData(limit, interval, asset) {
+  async function fetchTwelveData(symbol, limit, interval) {
     const key = window.Assets.twelveDataKey;
     if (!key) throw new Error('API key Twelve Data belum diisi');
     const params = new URLSearchParams({
-      symbol: asset.candles.symbol,
+      symbol,
       interval: TD_INTERVAL[interval],
       outputsize: limit,
       timezone: 'UTC',
@@ -163,12 +210,13 @@
       series.setData(candles);
       const n = candles.length;
       chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, n - 160), to: n + 12 });
-      recompute();
-      setStatus('');
+      if (n) recompute();
+      renderAssetUI();
+      setStatus(n ? '' : 'Belum ada candle dalam jam pasar spot.');
       schedulePoll(id);
     } catch (err) {
       if (id !== state.loadId) return;
-      setStatus(`Gagal memuat data ${state.asset.candles.label}: ${err.message}`);
+      setStatus(`Gagal memuat data ${sourceFor(state.asset).label}: ${err.message}`);
       resetDownstream(`Gagal memuat data candle: ${err.message}`);
     }
   }
@@ -197,7 +245,7 @@
         // Gagal sementara: coba lagi di putaran berikutnya
       }
       schedulePoll(id);
-    }, POLL_MS[state.asset.candles.provider]);
+    }, POLL_MS[sourceFor(state.asset).provider]);
   }
 
   /* ---------- Mesin SMC ---------- */
@@ -359,18 +407,15 @@
     return v;
   }
 
-  // Pasar emas tutup Jumat 17:00 – Minggu 18:00 NY (PAXG tetap jalan 24/7)
-  const goldMarketOpen = ({ day, min }) =>
-    !(day === 'Sat' || (day === 'Fri' && min >= 17 * 60) || (day === 'Sun' && min < 18 * 60));
-
   function computeKillzones(c) {
     if (!KILLZONE_TFS.has(state.interval)) return [];
     const runs = [];
     let cur = null;
     for (let i = 0; i < c.length; i++) {
-      const clock = nyClock(c[i].time - TZ_OFFSET);
-      const m = clock.min;
-      const zone = goldMarketOpen(clock) ? KILLZONES.find(z => m >= z.start && m < z.end) || null : null;
+      const utc = c[i].time - TZ_OFFSET;
+      const m = nyClock(utc).min;
+      const open = window.Assets.marketOpen(utc, state.asset);
+      const zone = open ? KILLZONES.find(z => m >= z.start && m < z.end) || null : null;
       if (zone && cur && cur.zone === zone) {
         cur.end = i;
       } else if (zone) {
@@ -387,7 +432,7 @@
   window.SMCSessions = {
     activeKillzone(nowSec = Date.now() / 1000) {
       const clock = nyClockOf(Math.floor(nowSec));
-      if (!goldMarketOpen(clock)) return null;
+      if (!window.Assets.marketOpen(Math.floor(nowSec), state.asset)) return null;
       return KILLZONES.find(z => clock.min >= z.start && clock.min < z.end) || null;
     }
   };
@@ -437,7 +482,7 @@
     state.mtfTimer = setTimeout(() => {
       refreshMTF();
       scheduleMTF();
-    }, MTF_MS[state.asset.candles.provider]);
+    }, MTF_MS[sourceFor(state.asset).provider]);
   }
 
   function renderMTF() {
@@ -474,7 +519,7 @@
     // Diteruskan ke peluang.js untuk petunjuk zona beli/jual
     const last = state.candles[state.candles.length - 1];
     window.dispatchEvent(new CustomEvent('smc:update', {
-      detail: { smc: state.smc, price: last.close, interval: state.interval, candles: state.candles, asset: state.asset }
+      detail: { smc: state.smc, price: last.close, interval: state.interval, candles: state.candles, asset: state.asset, source: state.src }
     }));
   }
 
@@ -773,14 +818,26 @@
 
   function renderAssetUI() {
     const a = state.asset;
-    document.getElementById('smc-sub').textContent = `${a.candles.label} (${a.candles.note}) · Lightweight Charts`;
-    const usesKey = a.candles.provider === 'twelvedata';
-    keyBox.hidden = !usesKey;
-    if (!usesKey) return;
+    const src = state.src || sourceFor(a);
+    document.getElementById('smc-sub').textContent =
+      `${src.label} (${src.note})${src.proxy ? ' · PROXY' : ''} · jam pasar spot saja · Lightweight Charts`;
+    // Kotak key tampil untuk aset Twelve Data dan untuk aset proxy yang bisa ditingkatkan ke harga spot
+    const canUseKey = a.candles.provider === 'twelvedata' || !!a.spotData;
+    keyBox.hidden = !canUseKey;
+    keyBox.classList.toggle('is-proxy', !!src.proxy);
+    if (!canUseKey) return;
     const hasKey = !!window.Assets.twelveDataKey;
-    document.getElementById('td-key-text').textContent = hasKey
-      ? `Data candle ${a.label} dari Twelve Data (key tersimpan hanya di browser ini). Diperbarui tiap 5 menit karena kuota gratis 800 request/hari.`
-      : `Data candle ${a.label} memakai Twelve Data dan butuh API key gratis milik Anda (disimpan hanya di browser ini).`;
+    let text;
+    if (src.fallbackReason) {
+      text = `Twelve Data gagal untuk ${a.spotData.label} (${src.fallbackReason}). Sementara memakai proxy ${src.label}: ${a.candles.proxyGap} — level harga hanya indikatif.`;
+    } else if (src.proxy) {
+      text = `Harga memakai proxy ${src.label}: ${a.candles.proxyGap} — level harga hanya indikatif. Isi API key Twelve Data gratis untuk harga ${a.spotData.label} spot asli.`;
+    } else if (hasKey) {
+      text = `Data candle ${src.label} dari Twelve Data (key tersimpan hanya di browser ini). Diperbarui tiap 5 menit karena kuota gratis 800 request/hari.`;
+    } else {
+      text = `Data candle ${a.label} memakai Twelve Data dan butuh API key gratis milik Anda (disimpan hanya di browser ini).`;
+    }
+    document.getElementById('td-key-text').textContent = text;
     keyForm.hidden = hasKey;
     keyClear.hidden = !hasKey;
   }
@@ -795,6 +852,7 @@
 
   function switchAsset(asset) {
     state.asset = asset;
+    state.src = null;
     // Naikkan id agar respons request aset lama diabaikan
     state.loadId++;
     state.mtfId++;
@@ -824,7 +882,10 @@
   keyClear.addEventListener('click', () => { window.Assets.twelveDataKey = null; });
 
   window.addEventListener('asset:change', e => switchAsset(e.detail));
-  window.addEventListener('asset:key', () => switchAsset(state.asset));
+  window.addEventListener('asset:key', () => {
+    state.spotFailed = {}; // key baru: coba lagi harga spot
+    switchAsset(state.asset);
+  });
 
   series.applyOptions({ priceFormat: priceFormat(state.asset) });
   renderAssetUI();

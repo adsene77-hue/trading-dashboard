@@ -22,11 +22,14 @@
   function cotBias({ analysis, data }) {
     const n = data.length;
     const net4 = n >= 5 ? data[n - 1].net - data[n - 5].net : analysis.dNet;
-    const net4Text = `Net Long 4 minggu ${net4 >= 0 ? '+' : '−'}${Math.abs(net4).toLocaleString('id-ID')} kontrak.`;
+    const net4Text = `Posisi bersih 4 minggu ${net4 >= 0 ? '+' : '−'}${Math.abs(net4).toLocaleString('id-ID')} kontrak.`;
 
     switch (analysis.verdict.key) {
       case 'accum':
         return { dir: 1, weak: false, label: 'Beli', note: 'Institusi menambah Net Long minggu ini. ' + net4Text };
+      case 'cover':
+        // Short berkurang tapi masih net short: dorongan naik belum didukung posisi beli bersih
+        return { dir: 1, weak: true, label: 'Beli (hati-hati)', note: 'Short covering — institusi masih net short. ' + net4Text };
       case 'dist':
         return { dir: -1, weak: false, label: 'Jual', note: 'Institusi mengurangi beli / menambah jual minggu ini. ' + net4Text };
     }
@@ -88,6 +91,17 @@
     const zones = bias.dir ? candidateZones(bias.dir, smc, price, mid) : [];
     const steps = [];
     const sideWord = bias.dir === 1 ? 'beli' : 'jual';
+
+    // Risiko berita: rilis besar yang sedang berlangsung atau dalam 24 jam ke depan
+    const nf = window.NewsFilter;
+    const news = nf ? nf.status(window.Assets.active) : null;
+    if (news && news.state === 'blackout') {
+      steps.push(`<b>Jangan entry sekarang</b> — rilis ${nf.describe(news.active)} (${nf.fmtTime(news.active[0].time)}).`);
+    } else if (news && news.state === 'clear' && news.next.length && news.next[0].time - Date.now() < 24 * 3600e3) {
+      steps.push(`Berita besar ${nf.fmtIn(news.next[0].time)}: <b>${nf.describe(news.next)}</b> — hindari entry mulai 2 jam sebelum rilis.`);
+    } else if (news && news.state === 'unknown') {
+      steps.push(`${news.reason} — cek kalender ekonomi secara manual sebelum entry.`);
+    }
 
     if (bias.dir === 0) {
       steps.push('Bias institusi belum jelas — lebih aman menunggu laporan COT berikutnya atau struktur SMC yang tegas.');

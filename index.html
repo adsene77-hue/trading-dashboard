@@ -209,6 +209,7 @@
           <strong class="signal-title" id="signal-title">WAIT</strong>
           <span class="signal-dir" id="signal-dir">Arah kandidat: —</span>
           <p class="signal-desc" id="signal-desc">Menunggu data…</p>
+          <div class="signal-guard" id="signal-guard"></div>
         </div>
         <ul class="signal-checklist" id="signal-list"></ul>
       </div>
@@ -270,6 +271,7 @@
   <!-- ===================== FOOTER: BERITA ===================== -->
   <!-- assets.js paling awal: modul lain membaca aset aktif darinya -->
   <script src="assets.js"></script>
+  <script src="news_filter.js"></script>
   <!-- Dimuat sebelum script COT & SMC agar tidak ketinggalan event pertama -->
   <script src="peluang.js"></script>
   <script src="signal_engine.js"></script>
@@ -294,11 +296,10 @@
 
     /* ---------- TradingView: Advanced Chart ---------- */
     // Catatan: widget embed gratis hanya bisa memuat indikator bawaan TradingView.
-    // "Smart Money Concepts" (LuxAlgo) adalah skrip komunitas, sehingga tidak bisa
-    // dipasang otomatis lewat parameter "studies" — SMC dihitung sendiri di smc.js.
-    const CHART_STUDIES = [
-      'STD;Visible%1Range%1Volume%1Profile'
-    ];
+    // "Smart Money Concepts" (LuxAlgo) adalah skrip komunitas — SMC dihitung sendiri di smc.js.
+    // Volume Profile ditolak widget gratis (ID studi 404), jadi tidak dipasang; volume
+    // standar tetap tampil di bawah grafik.
+    const CHART_STUDIES = [];
 
     function mountWidget(containerId, src, config) {
       const container = document.getElementById(containerId);
@@ -479,16 +480,20 @@
       const drasticShort = Math.abs(dShort) >= avgShort * DRASTIC_RATIO;
       const minorShort = Math.abs(dShort) < avgShort * MINOR_RATIO;
 
+      // Label memperhitungkan posisi bersih: Net Long yang naik saat posisi masih net short
+      // adalah pengurangan short (short covering), bukan akumulasi beli
       let verdict;
       if (dLong < 0 && dShort > 0) {
         verdict = { key: 'dist', text: 'Big Money Sedang Distribusi/Jual' };
+      } else if (dNet > 0 && cur.net < 0) {
+        verdict = { key: 'cover', text: 'Big Money Mengurangi Posisi Jual (Short Covering) — Masih Net Short' };
       } else if (dNet > 0) {
         verdict = { key: 'accum', text: 'Big Money Sedang Akumulasi Beli' };
-      } else if (dLong < 0) {
+      } else if (dLong < 0 && cur.net > 0) {
         // Long ditutup tanpa penambahan Short berarti realisasi keuntungan
         verdict = { key: 'tp', text: 'Big Money Sedang Taking Profit' };
       } else if (dNet < 0) {
-        // Long tetap/naik tapi Short bertambah lebih cepat
+        // Short bertambah lebih cepat, atau long ditutup saat sudah net short
         verdict = { key: 'dist', text: 'Big Money Sedang Distribusi/Jual' };
       } else {
         verdict = { key: 'tp', text: 'Big Money Menahan Posisi (Netral)' };
@@ -542,7 +547,7 @@
         d < 0 ? `mengurangi <b>${fmt(d)}</b> kontrak ${side}` :
         `tidak mengubah kontrak ${side}`;
 
-      panel.classList.remove('is-accum', 'is-dist', 'is-tp');
+      panel.classList.remove('is-accum', 'is-dist', 'is-tp', 'is-cover');
       panel.classList.add('is-' + r.verdict.key);
       document.getElementById('report-period').textContent = `${r.prev.date} → ${r.cur.date}`;
 
@@ -550,11 +555,11 @@
         <div class="report-block report-verdict">
           <span class="report-label">Kesimpulan Aksi</span>
           <strong class="verdict">${r.verdict.text}</strong>
-          <span class="verdict-meta">Net posisi ${signed(r.prev.net)} → <b class="${cls(r.cur.net)}">${signed(r.cur.net)}</b> kontrak</span>
+          <span class="verdict-meta">Net posisi ${signed(r.prev.net)} → <b class="${cls(r.cur.net)}">${signed(r.cur.net)}</b> kontrak (${r.cur.net >= 0 ? 'Net Long' : 'Net Short'})</span>
         </div>
         <div class="report-block">
           <span class="report-label">Rincian Posisi</span>
-          <p>Institusi ${action(r.dLong, 'Beli')} dan ${action(r.dShort, 'Jual')} minggu ini, sehingga Net Long berubah <b class="${cls(r.dNet)}">${signed(r.dNet)}</b> kontrak.</p>
+          <p>Institusi ${action(r.dLong, 'Beli')} dan ${action(r.dShort, 'Jual')} minggu ini, sehingga posisi bersih berubah <b class="${cls(r.dNet)}">${signed(r.dNet)}</b> kontrak.</p>
           <div class="delta-row">
             <span class="delta">Long <b class="mono ${cls(r.dLong)}">${signed(r.dLong)}${pct(r.dLong, r.prev.long)}</b></span>
             <span class="delta">Short <b class="mono ${cls(-r.dShort)}">${signed(r.dShort)}${pct(r.dShort, r.prev.short)}</b></span>
@@ -610,7 +615,7 @@
       empty.hidden = false;
       empty.textContent = 'Memuat data CFTC…';
       const report = document.getElementById('cot-report');
-      report.classList.remove('is-accum', 'is-dist', 'is-tp');
+      report.classList.remove('is-accum', 'is-dist', 'is-tp', 'is-cover');
       document.getElementById('report-period').textContent = 'COT mingguan · Non-Commercial';
       document.getElementById('report-body').innerHTML = '<p class="report-empty">Memuat data CFTC…</p>';
     }

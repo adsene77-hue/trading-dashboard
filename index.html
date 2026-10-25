@@ -42,7 +42,7 @@
           </div>
         </div>
         <div class="chart-box">
-          <div class="chart-label">COMEX:GC1! <small>Gold Futures · Volume Institusi</small></div>
+          <div class="chart-label">BINANCE:PAXGUSDT <small>Token Emas · Volume Transaksi</small></div>
           <div class="tradingview-widget-container" id="tv-futures">
             <div class="tradingview-widget-container__widget"></div>
           </div>
@@ -254,7 +254,8 @@
     }
 
     mountChart('tv-spot', 'OANDA:XAUUSD');
-    mountChart('tv-futures', 'COMEX:GC1!');
+    // COMEX:GC1! tidak tersedia di widget gratis; PAXG/USDT punya volume transaksi riil (bukan tick volume)
+    mountChart('tv-futures', 'BINANCE:PAXGUSDT');
 
     /* ---------- TradingView: Economic Calendar ---------- */
     mountWidget('tv-calendar', 'https://s3.tradingview.com/external-embedding/embed-widget-events.js', {

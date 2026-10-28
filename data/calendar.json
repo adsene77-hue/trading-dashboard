@@ -1,5 +1,5 @@
 {
- "updated": "2026-10-27T18:02:13.029938+00:00",
+ "updated": "2026-10-28T05:43:23.802534+00:00",
  "source": "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
  "events": [
   {
@@ -311,7 +311,7 @@
    "country": "USD",
    "date": "2026-10-28T10:30:00-04:00",
    "impact": "Low",
-   "forecast": "-0.1M",
+   "forecast": "0.1M",
    "previous": "-3.1M"
   },
   {
@@ -423,7 +423,7 @@
    "country": "USD",
    "date": "2026-10-29T08:30:00-04:00",
    "impact": "Medium",
-   "forecast": "3.3%",
+   "forecast": "3.2%",
    "previous": "6.2%"
   },
   {
@@ -487,7 +487,7 @@
    "country": "USD",
    "date": "2026-10-29T10:30:00-04:00",
    "impact": "Low",
-   "forecast": "",
+   "forecast": "75B",
    "previous": "77B"
   },
   {
@@ -623,7 +623,7 @@
    "country": "GBP",
    "date": "2026-10-30T03:00:00-04:00",
    "impact": "Low",
-   "forecast": "-0.1%",
+   "forecast": "-0.2%",
    "previous": "-0.2%"
   },
   {

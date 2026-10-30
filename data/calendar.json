@@ -1,5 +1,5 @@
 {
- "updated": "2026-10-30T12:57:04.709870+00:00",
+ "updated": "2026-10-30T22:21:50.580292+00:00",
  "source": "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
  "events": [
   {
@@ -758,6 +758,14 @@
    "title": "FOMC Member Musalem Speaks",
    "country": "USD",
    "date": "2026-10-30T12:30:00-04:00",
+   "impact": "Low",
+   "forecast": "",
+   "previous": ""
+  },
+  {
+   "title": "FOMC Member Logan Speaks",
+   "country": "USD",
+   "date": "2026-10-30T13:30:00-04:00",
    "impact": "Low",
    "forecast": "",
    "previous": ""

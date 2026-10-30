@@ -1,5 +1,5 @@
 {
- "updated": "2026-10-29T13:03:16.264467+00:00",
+ "updated": "2026-10-30T05:50:42.191933+00:00",
  "source": "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
  "events": [
   {
@@ -555,9 +555,17 @@
    "previous": "0.6%"
   },
   {
+   "title": "BOJ Outlook Report",
+   "country": "JPY",
+   "date": "2026-10-29T23:02:00-04:00",
+   "impact": "High",
+   "forecast": "",
+   "previous": ""
+  },
+  {
    "title": "BOJ Policy Rate",
    "country": "JPY",
-   "date": "2026-10-29T22:30:00-04:00",
+   "date": "2026-10-29T23:02:00-04:00",
    "impact": "High",
    "forecast": "<1.25%",
    "previous": "<1.25%"
@@ -565,15 +573,7 @@
   {
    "title": "Monetary Policy Statement",
    "country": "JPY",
-   "date": "2026-10-29T22:30:00-04:00",
-   "impact": "High",
-   "forecast": "",
-   "previous": ""
-  },
-  {
-   "title": "BOJ Outlook Report",
-   "country": "JPY",
-   "date": "2026-10-29T22:31:00-04:00",
+   "date": "2026-10-29T23:02:00-04:00",
    "impact": "High",
    "forecast": "",
    "previous": ""

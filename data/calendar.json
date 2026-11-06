@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-05T19:57:47.700777+00:00",
+ "updated": "2026-11-06T19:25:34.254323+00:00",
  "source": "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
  "events": [
   {
@@ -902,6 +902,14 @@
    "title": "FOMC Member Bowman Speaks",
    "country": "USD",
    "date": "2026-11-06T12:15:00-05:00",
+   "impact": "Low",
+   "forecast": "",
+   "previous": ""
+  },
+  {
+   "title": "FOMC Member Daly Speaks",
+   "country": "USD",
+   "date": "2026-11-06T13:00:00-05:00",
    "impact": "Low",
    "forecast": "",
    "previous": ""

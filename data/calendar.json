@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-08T06:02:21.120969+00:00",
+ "updated": "2026-11-09T22:23:00.396834+00:00",
  "source": "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
  "events": [
   {
@@ -43,28 +43,20 @@
    "previous": "19.5B"
   },
   {
-   "title": "M2 Money Supply y/y",
-   "country": "CNY",
-   "date": "2026-11-09T04:03:00-05:00",
-   "impact": "Low",
-   "forecast": "7.3%",
-   "previous": "7.2%"
-  },
-  {
-   "title": "New Loans",
-   "country": "CNY",
-   "date": "2026-11-09T04:03:00-05:00",
-   "impact": "Low",
-   "forecast": "80B",
-   "previous": "1080B"
-  },
-  {
    "title": "Sentix Investor Confidence",
    "country": "EUR",
    "date": "2026-11-09T04:30:00-05:00",
    "impact": "Low",
    "forecast": "2.1",
    "previous": "2.7"
+  },
+  {
+   "title": "G7 Meetings",
+   "country": "All",
+   "date": "2026-11-09T04:45:00-05:00",
+   "impact": "Low",
+   "forecast": "",
+   "previous": ""
   },
   {
    "title": "ECOFIN Meetings",
@@ -183,7 +175,7 @@
    "country": "CNY",
    "date": "2026-11-09T22:03:00-05:00",
    "impact": "Low",
-   "forecast": "859B",
+   "forecast": "855B",
    "previous": "906B"
   },
   {
@@ -207,7 +199,7 @@
    "country": "JPY",
    "date": "2026-11-10T00:00:00-05:00",
    "impact": "Low",
-   "forecast": "46.9",
+   "forecast": "47.1",
    "previous": "47.0"
   },
   {
@@ -227,11 +219,35 @@
    "previous": ""
   },
   {
+   "title": "M2 Money Supply y/y",
+   "country": "CNY",
+   "date": "2026-11-10T04:03:00-05:00",
+   "impact": "Low",
+   "forecast": "7.2%",
+   "previous": "7.2%"
+  },
+  {
+   "title": "New Loans",
+   "country": "CNY",
+   "date": "2026-11-10T04:03:00-05:00",
+   "impact": "Low",
+   "forecast": "80B",
+   "previous": "1080B"
+  },
+  {
+   "title": "G7 Meetings",
+   "country": "All",
+   "date": "2026-11-10T04:45:00-05:00",
+   "impact": "Low",
+   "forecast": "",
+   "previous": ""
+  },
+  {
    "title": "NFIB Small Business Index",
    "country": "USD",
    "date": "2026-11-10T06:00:00-05:00",
    "impact": "Low",
-   "forecast": "97.7",
+   "forecast": "98.0",
    "previous": "97.9"
   },
   {
@@ -389,7 +405,7 @@
   {
    "title": "German Buba President Nagel Speaks",
    "country": "EUR",
-   "date": "2026-11-11T03:20:00-05:00",
+   "date": "2026-11-11T03:15:00-05:00",
    "impact": "Low",
    "forecast": "",
    "previous": ""
@@ -401,6 +417,14 @@
    "impact": "Low",
    "forecast": "0.7%",
    "previous": "-1.3%"
+  },
+  {
+   "title": "ECB President Lagarde Speaks",
+   "country": "EUR",
+   "date": "2026-11-11T04:45:00-05:00",
+   "impact": "Medium",
+   "forecast": "",
+   "previous": ""
   },
   {
    "title": "German 30-y Bond Auction",
@@ -455,7 +479,7 @@
    "country": "GBP",
    "date": "2026-11-11T19:01:00-05:00",
    "impact": "Low",
-   "forecast": "-32%",
+   "forecast": "-33%",
    "previous": "-32%"
   },
   {
@@ -519,7 +543,7 @@
    "country": "GBP",
    "date": "2026-11-12T02:00:00-05:00",
    "impact": "Low",
-   "forecast": "-0.3%",
+   "forecast": "0.4%",
    "previous": "1.7%"
   },
   {
@@ -531,19 +555,11 @@
    "previous": ""
   },
   {
-   "title": "EU Economic Forecasts",
-   "country": "EUR",
-   "date": "2026-11-12T05:00:00-05:00",
-   "impact": "Low",
-   "forecast": "",
-   "previous": ""
-  },
-  {
    "title": "Building Permits m/m",
    "country": "CAD",
    "date": "2026-11-12T08:30:00-05:00",
    "impact": "Low",
-   "forecast": "-3.9%",
+   "forecast": "-4.0%",
    "previous": "8.8%"
   },
   {
@@ -557,7 +573,7 @@
   {
    "title": "FOMC Member Hammack Speaks",
    "country": "USD",
-   "date": "2026-11-12T09:00:00-05:00",
+   "date": "2026-11-12T08:30:00-05:00",
    "impact": "Low",
    "forecast": "",
    "previous": ""
@@ -597,7 +613,7 @@
   {
    "title": "FOMC Member Goolsbee Speaks",
    "country": "USD",
-   "date": "2026-11-12T11:30:00-05:00",
+   "date": "2026-11-12T11:15:00-05:00",
    "impact": "Low",
    "forecast": "",
    "previous": ""
@@ -609,6 +625,14 @@
    "impact": "Low",
    "forecast": "",
    "previous": "-0.9M"
+  },
+  {
+   "title": "German Buba President Nagel Speaks",
+   "country": "EUR",
+   "date": "2026-11-12T12:30:00-05:00",
+   "impact": "Low",
+   "forecast": "",
+   "previous": ""
   },
   {
    "title": "30-y Bond Auction",
@@ -782,6 +806,14 @@
    "title": "FOMC Member Bowman Speaks",
    "country": "USD",
    "date": "2026-11-13T10:50:00-05:00",
+   "impact": "Low",
+   "forecast": "",
+   "previous": ""
+  },
+  {
+   "title": "German Buba President Nagel Speaks",
+   "country": "EUR",
+   "date": "2026-11-13T11:00:00-05:00",
    "impact": "Low",
    "forecast": "",
    "previous": ""

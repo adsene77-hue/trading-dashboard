@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-13T19:43:07.601788+00:00",
+ "updated": "2026-11-14T06:25:00.160152+00:00",
  "source": "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
  "events": [
   {
@@ -822,6 +822,14 @@
    "title": "FOMC Member Daly Speaks",
    "country": "USD",
    "date": "2026-11-13T12:00:00-05:00",
+   "impact": "Low",
+   "forecast": "",
+   "previous": ""
+  },
+  {
+   "title": "FOMC Financial Stability Report",
+   "country": "USD",
+   "date": "2026-11-13T16:00:00-05:00",
    "impact": "Low",
    "forecast": "",
    "previous": ""

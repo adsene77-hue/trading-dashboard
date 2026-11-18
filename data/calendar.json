@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-18T07:29:49.047186+00:00",
+ "updated": "2026-11-18T20:32:22.289054+00:00",
  "source": "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
  "events": [
   {
@@ -523,14 +523,6 @@
    "previous": "3.9%"
   },
   {
-   "title": "Foreign Direct Investment ytd/y",
-   "country": "CNY",
-   "date": "2026-11-18T02:02:00-05:00",
-   "impact": "Low",
-   "forecast": "",
-   "previous": "-4.3%"
-  },
-  {
    "title": "BOE Gov Bailey Speaks",
    "country": "GBP",
    "date": "2026-11-18T02:30:00-05:00",
@@ -929,6 +921,14 @@
    "impact": "Low",
    "forecast": "18.0B",
    "previous": "24.5B"
+  },
+  {
+   "title": "Foreign Direct Investment ytd/y",
+   "country": "CNY",
+   "date": "2026-11-20T02:02:00-05:00",
+   "impact": "Low",
+   "forecast": "",
+   "previous": "-4.3%"
   },
   {
    "title": "ECB President Lagarde Speaks",

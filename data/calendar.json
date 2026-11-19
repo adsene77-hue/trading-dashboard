@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-18T20:32:22.289054+00:00",
+ "updated": "2026-11-19T20:38:33.491250+00:00",
  "source": "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
  "events": [
   {
@@ -811,20 +811,20 @@
    "previous": "0.0%"
   },
   {
-   "title": "Mortgage Delinquencies",
-   "country": "USD",
-   "date": "2026-11-19T10:15:00-05:00",
-   "impact": "Low",
-   "forecast": "",
-   "previous": "4.37%"
-  },
-  {
    "title": "Natural Gas Storage",
    "country": "USD",
    "date": "2026-11-19T10:30:00-05:00",
    "impact": "Low",
    "forecast": "25B",
    "previous": "61B"
+  },
+  {
+   "title": "Mortgage Delinquencies",
+   "country": "USD",
+   "date": "2026-11-19T10:46:00-05:00",
+   "impact": "Low",
+   "forecast": "",
+   "previous": "4.37%"
   },
   {
    "title": "FOMC Member Goolsbee Speaks",

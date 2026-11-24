@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-23T23:54:27.150095+00:00",
+ "updated": "2026-11-24T22:27:21.872405+00:00",
  "source": "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
  "events": [
   {
@@ -189,7 +189,7 @@
   {
    "title": "CB Leading Index m/m",
    "country": "CNY",
-   "date": "2026-11-24T09:00:00-05:00",
+   "date": "2026-11-24T08:51:00-05:00",
    "impact": "Low",
    "forecast": "",
    "previous": "-0.1%"

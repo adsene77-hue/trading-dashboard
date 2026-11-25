@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-24T22:27:21.872405+00:00",
+ "updated": "2026-11-25T08:36:28.327987+00:00",
  "source": "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
  "events": [
   {
@@ -323,6 +323,14 @@
    "previous": "3.37|1.1"
   },
   {
+   "title": "FOMC Member Bowman Speaks",
+   "country": "USD",
+   "date": "2026-11-25T07:25:00-05:00",
+   "impact": "Low",
+   "forecast": "",
+   "previous": ""
+  },
+  {
    "title": "Core PCE Price Index m/m",
    "country": "USD",
    "date": "2026-11-25T08:30:00-05:00",
@@ -399,7 +407,7 @@
    "country": "USD",
    "date": "2026-11-25T10:30:00-05:00",
    "impact": "Low",
-   "forecast": "",
+   "forecast": "2.0M",
    "previous": "3.4M"
   },
   {
@@ -560,7 +568,7 @@
    "date": "2026-11-27T05:33:00-05:00",
    "impact": "Low",
    "forecast": "",
-   "previous": ""
+   "previous": "4.49|1.6"
   },
   {
    "title": "German Buba President Nagel Speaks",
